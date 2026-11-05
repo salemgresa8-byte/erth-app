@@ -1,0 +1,17 @@
+# Secrets / temporary seeding
+seed.js
+node_modules/
+package.json
+package-lock.json
+
+# Flutter / Dart
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock.bak
+*.iml
+.idea/
+.vscode/
+local.properties
