@@ -1,0 +1,28 @@
+name: Deploy Flutter Web to Surge
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Web Application
+        run: flutter build web --release
+
+      - name: Deploy to Surge.sh
+        run: |
+          npx --yes surge --project ./build/web --domain erth-app.surge.sh --token ${{ secrets.SURGE_TOKEN }}
