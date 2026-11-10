@@ -7,9 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseService {
   SupabaseService._();
 
-  static const String url = 'https://qosvanmgszuipkpqzrvy.supabase.co';
+  static const String url = 'https://agjmzujptenllpqpkffv.supabase.co';
   static const String anonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvc3Zhbm1nc3p1aXBrcHF6cnZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2NDQzODQsImV4cCI6MjEwOTIyMDM4NH0.j7uHbVEB-A0DTQSeLj6diqxVt7Dp4s2kKQoMOSNgMpI';
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnam16dWpwdGVubGxwcXBrZmZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQzMjA3NDIsImV4cCI6MjEwOTg5Njc0Mn0.LG1qTX4JoJNCQJEfJoOrqID2JO8THyTbJBvAA7XHP-0';
 
   static Future<void> init() async {
     await Supabase.initialize(url: url, anonKey: anonKey);

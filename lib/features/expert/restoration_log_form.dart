@@ -33,16 +33,13 @@ class _RestorationLogFormState extends State<RestorationLogForm> {
     if (!_formKey.currentState!.validate()) return;
 
     final user = SupabaseService.client.auth.currentUser;
-    if (user == null) {
-      _snack('You must be signed in as an expert to save a log.');
-      return;
-    }
+    // TEMPORARY (no-auth testing): expert_id is null when nobody is signed in.
 
     setState(() => _saving = true);
     try {
       await SupabaseService.client.from('restoration_logs').insert({
         'artifact_id': widget.artifact['id'],
-        'expert_id': user.id,
+        'expert_id': user?.id,
         'chemical_materials': _materials.text.trim(),
         'technical_report': _report.text.trim(),
       });

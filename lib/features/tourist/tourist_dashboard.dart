@@ -8,26 +8,54 @@ import '../../core/services/supabase_service.dart';
 import '../../core/theme/app_theme.dart';
 
 class _Site {
-  const _Site(this.nameEn, this.nameAr, this.blurb, this.icon);
+  const _Site(this.nameEn, this.nameAr, this.blurb, this.icon, this.qrRef,
+      this.storyAr, this.nameArFull);
   final String nameEn;
   final String nameAr;
   final String blurb;
   final IconData icon;
+
+  /// Matches artifacts.qr_code_ref in the database.
+  final String qrRef;
+
+  /// Offline fallback used if the database row can't be loaded.
+  final String storyAr;
+  final String nameArFull;
 }
 
 const _sites = [
-  _Site('Leptis Magna', 'لبدة الكبرى',
+  _Site(
+      'Leptis Magna',
+      'لبدة الكبرى',
       'A grand Roman port city and birthplace of Emperor Septimius Severus.',
-      Icons.account_balance),
-  _Site('Cyrene', 'قوريني',
+      Icons.account_balance,
+      'erth/leptis-magna',
+      'تُعد واحدة من أجمل وأكمل المدن الرومانية في حوض البحر الأبيض المتوسط.',
+      'موقع لبدة الكبرى'),
+  _Site(
+      'Cyrene',
+      'قوريني',
       'An ancient Greek colony, once a renowned centre of learning.',
-      Icons.temple_hindu_outlined),
-  _Site('Sabratha', 'صبراتة',
+      Icons.temple_hindu_outlined,
+      'erth/cyrene',
+      'إحدى أعظم المستعمرات الإغريقية القديمة في شمال أفريقيا.',
+      'موقع قورينا (شحات)'),
+  _Site(
+      'Sabratha',
+      'صبراتة',
       'A Phoenician trading post with a magnificent Roman theatre.',
-      Icons.theater_comedy_outlined),
-  _Site('Tadrart Acacus', 'تادرارت أكاكوس',
+      Icons.theater_comedy_outlined,
+      'erth/sabratha',
+      'ميناء فينيقي قديم تحول إلى مدينة رومانية مزدهرة على شاطئ البحر.',
+      'موقع صبراطة'),
+  _Site(
+      'Tadrart Acacus',
+      'تادرارت أكاكوس',
       'Saharan mountains sheltering thousands of prehistoric rock paintings.',
-      Icons.landscape_outlined),
+      Icons.landscape_outlined,
+      'erth/acacus',
+      'منطقة جبلية وصحراوية ساحرة تضم آلاف النقوش والرسومات الصخرية.',
+      'جبال تدرارت أكاكوس'),
 ];
 
 class TouristDashboard extends StatefulWidget {
@@ -71,6 +99,32 @@ class _TouristDashboardState extends State<TouristDashboard> {
     }
   }
 
+  /// Opens the story for a listed site: loads the database row by QR ref,
+  /// falling back to the built-in text if it can't be loaded.
+  Future<void> _openSite(_Site site) async {
+    Map<String, dynamic>? artifact;
+    try {
+      artifact = await SupabaseService.client
+          .from('artifacts')
+          .select('name_ar, name_en, story_ar, video_url')
+          .eq('qr_code_ref', site.qrRef)
+          .maybeSingle();
+    } catch (_) {
+      artifact = null;
+    }
+    if (!mounted) return;
+    context.push(
+      AppRoutes.story,
+      extra: artifact ??
+          {
+            'name_ar': site.nameArFull,
+            'name_en': site.nameEn,
+            'story_ar': site.storyAr,
+            'video_url': null,
+          },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -103,7 +157,7 @@ class _TouristDashboardState extends State<TouristDashboard> {
                     color: AppColors.marble.withValues(alpha: 0.85))),
             const SizedBox(height: 20),
             for (final site in _sites) ...[
-              _SiteCard(site: site),
+              _SiteCard(site: site, onTap: () => _openSite(site)),
               const SizedBox(height: 12),
             ],
           ],
@@ -114,15 +168,19 @@ class _TouristDashboardState extends State<TouristDashboard> {
 }
 
 class _SiteCard extends StatelessWidget {
-  const _SiteCard({required this.site});
+  const _SiteCard({required this.site, required this.onTap});
   final _Site site;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return Card(
       color: AppColors.marble,
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,6 +206,7 @@ class _SiteCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

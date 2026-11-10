@@ -1,5 +1,6 @@
 # Secrets / temporary seeding
 seed.js
+create_logs_table.js
 node_modules/
 package.json
 package-lock.json
