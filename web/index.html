@@ -81,14 +81,19 @@
     <div class="bar"><i></i></div>
     <div class="msg">جارٍ تحميل منصة التراث الليبي…</div>
   </div>
-  <script>
-    window.addEventListener("flutter-first-frame", function () {
-      var s = document.getElementById("erth-splash");
-      if (!s) return;
-      s.style.opacity = "0";
-      setTimeout(function () { s.remove(); }, 450);
-    });
-  </script>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Safety watchdog: remove splash screen after Flutter loads or within 3.5 seconds max
+    function removeSplash() {
+      var splash = document.getElementById('erth-splash');
+      if (splash) {
+        splash.style.transition = 'opacity 0.4s ease';
+        splash.style.opacity = '0';
+        setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 400);
+      }
+    }
+    window.addEventListener('flutter-first-frame', removeSplash);
+    setTimeout(removeSplash, 3500);
+  </script>
 </body>
 </html>
