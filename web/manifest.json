@@ -3,30 +3,26 @@
     "short_name": "ERTH",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#F6F1E7",
+    "background_color": "#F5F1E6",
     "theme_color": "#8B261D",
     "description": "منصة إرث للتراث الليبي - Libyan heritage platform",
     "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {
-            "src": "icons/Icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        },
-        {
-            "src": "icons/Icon-maskable-192.png",
+            "src": "assets/assets/logo.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "maskable"
+            "purpose": "any"
         },
         {
-            "src": "icons/Icon-maskable-512.png",
+            "src": "assets/assets/logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/assets/logo.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"

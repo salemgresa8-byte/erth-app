@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'pwa/pwa.dart';
 
@@ -51,7 +52,7 @@ class Pal {
   const Pal(this.bg, this.card, this.primary, this.accent, this.text, this.text2,
       this.line);
 
-  static const light = Pal(Color(0xFFF6F1E7), Color(0xFFFFFDF9),
+  static const light = Pal(Color(0xFFF5F1E6), Color(0xFFFFFDF9),
       Color(0xFF8B261D), Color(0xFFC59B27), Color(0xFF231915),
       Color(0xFF6E5A4F), Color(0xFFE6DCCB));
   static const dark = Pal(Color(0xFF161210), Color(0xFF241E1B),
@@ -189,7 +190,10 @@ class _ArchPainter extends CustomPainter {
 class ErthLogo extends StatelessWidget {
   final double size;
   final bool showText;
-  const ErthLogo({super.key, this.size = 40, this.showText = true});
+
+  /// When set, the whole logo is tappable (used to jump back to Home).
+  final VoidCallback? onTap;
+  const ErthLogo({super.key, this.size = 40, this.showText = true, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +218,20 @@ class ErthLogo extends StatelessWidget {
         ),
       ),
     );
-    if (!showText) return icon;
+    final Widget content = showText ? _withText(p, icon) : icon;
+    if (onTap == null) return content;
+    return Semantics(
+      button: true,
+      label: 'ERTH - الرئيسية',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(size * 0.3),
+        child: Padding(padding: const EdgeInsets.all(2), child: content),
+      ),
+    );
+  }
+
+  Widget _withText(Pal p, Widget icon) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       textDirection: TextDirection.ltr,
@@ -299,6 +316,20 @@ class HeritageSite {
   String region(bool ar) => ar ? regionAr : regionEn;
   String era(bool ar) => ar ? eraAr : eraEn;
   String story(bool ar) => ar ? storyAr : storyEn;
+
+  /// Cover image first, then any extra gallery photos (deduplicated).
+  List<String> get photos =>
+      <String>{image, ...?kGallery[id]}.toList(growable: false);
+
+  List<(String, String, String)> get videos =>
+      kVideos[id] ??
+      [
+        (
+          'جولة وثائقية: $nameAr',
+          'Documentary: $nameEn',
+          'https://www.youtube.com/results?search_query=${Uri.encodeQueryComponent('$nameEn Libya')}'
+        ),
+      ];
 }
 
 const kAll = 'الكل';
@@ -310,6 +341,10 @@ const kCategoryEn = {
   'مدن قديمة': 'Ancient towns',
   'قلاع إسلامية': 'Islamic forts',
   'واحات طبيعية': 'Natural oases',
+  'تحف فنية': 'Masterpieces',
+  'شخصيات تاريخية': 'Historical figures',
+  'تحف أثرية': 'Archaeological treasures',
+  'مخطوطات نادرة': 'Rare manuscripts',
 };
 final kCategories = kCategoryEn.keys.toList();
 
@@ -524,7 +559,203 @@ const kSites = <HeritageSite>[
       ('اليوم', 'مقصد للمغامرين والباحثين', 'Destination for explorers and researchers'),
     ],
   ),
+  HeritageSite(
+    id: 'medusa', nameAr: 'رأس ميدوسا الرخامية', nameEn: 'Medusa of Leptis Magna',
+    regionAr: 'متحف السراي الحمراء - طرابلس', regionEn: 'Red Castle Museum, Tripoli',
+    category: 'تحف فنية',
+    eraAr: 'العصر الروماني - القرن 2–3 م', eraEn: 'Roman era – 2nd–3rd c. AD',
+    unesco: false, lat: 32.8987, lon: 13.1808,
+    status: Preservation.good, icon: Icons.face_retouching_natural,
+    image: 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Gorgone_libia_by_marcotambara.jpg',
+    storyAr: 'رأس ميدوسا (الجورجون) من أشهر الزخارف الرخامية المرتبطة بلبدة الكبرى، حيث زُيّنت أروقة الميدان السيفيري بميداليات تحمل رؤوس ميدوسا لحماية المكان من الشر.',
+    storyEn: 'The Gorgon Medusa head is among the most famous marble motifs tied to Leptis Magna, where the arcades of the Severan Forum were decorated with Medusa medallions believed to ward off evil.',
+    history: [
+      ('القرن 3 م', 'نحت الميداليات الرخامية للميدان السيفيري', 'Marble medallions carved for the Severan Forum'),
+      ('القرن 20', 'أعمال التنقيب والتوثيق الأثري', 'Excavation and archaeological documentation'),
+      ('اليوم', 'عرض وحفظ المقتنيات في متاحف طرابلس', 'Held and displayed in Tripoli museums'),
+    ],
+  ),
+  HeritageSite(
+    id: 'severus', nameAr: 'تمثال سيبتيموس سيفيروس', nameEn: 'Septimius Severus',
+    regionAr: 'لبدة الكبرى', regionEn: 'Leptis Magna',
+    category: 'شخصيات تاريخية',
+    eraAr: '145 – 211 م', eraEn: '145 – 211 AD',
+    unesco: true, lat: 32.6385, lon: 14.2910,
+    status: Preservation.underTreatment, icon: Icons.military_tech,
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Bust_of_Septimius_Severus_%28GL_357%29.jpg/960px-Bust_of_Septimius_Severus_%28GL_357%29.jpg',
+    storyAr: 'وُلد في لبدة الكبرى وأصبح عام 193 م أول إمبراطور روماني من أصل أفريقي. أغدق على مسقط رأسه بالأبنية الفخمة، ومنها القوس والميدان والبازيليكا السيفيرية.',
+    storyEn: 'Born in Leptis Magna, he became in 193 AD the first Roman emperor of African origin. He lavished his hometown with grand buildings, including the arch, the forum and the Severan Basilica.',
+    history: [
+      ('145 م', 'ولادته في لبدة الكبرى', 'Born in Leptis Magna'),
+      ('193 م', 'تولّيه عرش الإمبراطورية الرومانية', 'Becomes Roman emperor'),
+      ('211 م', 'وفاته في يورك ببريطانيا', 'Dies at Eboracum (York), Britain'),
+    ],
+  ),
+  HeritageSite(
+    id: 'zliten', nameAr: 'لوحة فسيفساء الصيد (زليتن)', nameEn: 'Zliten Hunting Mosaic',
+    regionAr: 'فيلا سيلين - الخمس', regionEn: 'Villa Silin, Khoms',
+    category: 'تحف أثرية',
+    eraAr: 'القرن 1–2 م', eraEn: '1st–2nd c. AD',
+    unesco: false, lat: 32.5500, lon: 14.4500,
+    status: Preservation.underTreatment, icon: Icons.grid_view,
+    image: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
+    storyAr: 'فسيفساء رومانية نادرة تصور مشاهد الصيد ومصارعة الوحوش والمصارعين والموسيقيين، وهي من أبرز روائع الفن الروماني في شمال أفريقيا.',
+    storyEn: 'A rare Roman mosaic depicting hunting, beast fights, gladiators and musicians — one of the finest works of Roman art in North Africa.',
+    history: [
+      ('القرن 1–2 م', 'تنفيذ اللوحة في فيلا ساحلية رومانية', 'Laid in a Roman coastal villa'),
+      ('1913', 'الكشف عن اللوحة قرب زليتن', 'Uncovered near Zliten'),
+      ('اليوم', 'أعمال تثبيت وتنظيف وحفظ', 'Stabilisation, cleaning and conservation'),
+    ],
+  ),
+  HeritageSite(
+    id: 'ghadames_ms', nameAr: 'مخطوطات غدامس التاريخية', nameEn: 'Ghadames Manuscripts',
+    regionAr: 'مدينة غدامس القديمة', regionEn: 'Old Town of Ghadames',
+    category: 'مخطوطات نادرة',
+    eraAr: 'القرون الوسطى – العصر الحديث', eraEn: 'Medieval – modern era',
+    unesco: true, lat: 30.1337, lon: 9.5000,
+    status: Preservation.critical, icon: Icons.menu_book,
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Maghribi_script.jpg/960px-Maghribi_script.jpg',
+    storyAr: 'مخطوطات في الفقه والتاريخ والتجارة والفلك حُفظت في بيوت غدامس ومكتباتها، شاهدة على دور المدينة كمحطة رئيسية على طرق القوافل الصحراوية.',
+    storyEn: 'Manuscripts on law, history, trade and astronomy kept in Ghadames homes and libraries, witnesses to the town’s role as a key stop on Saharan caravan routes.',
+    history: [
+      ('القرون الوسطى', 'نسخ وتبادل المخطوطات عبر القوافل', 'Manuscripts copied and exchanged along caravan routes'),
+      ('القرن 20', 'حفظها في المكتبات والبيوت الأسرية', 'Preserved in family homes and libraries'),
+      ('اليوم', 'حاجة ماسة للرقمنة والترميم الوقائي', 'Urgent need for digitisation and preventive conservation'),
+    ],
+  ),
+  HeritageSite(
+    id: 'apollo_cyrene', nameAr: 'تماثيل أبولون وكاهنات قورينا', nameEn: 'Apollo & Priestesses of Cyrene',
+    regionAr: 'شحات (قورينا)', regionEn: 'Shahhat (Cyrene)',
+    category: 'آثار إغريقية',
+    eraAr: 'القرن 2 م (نسخ رومانية عن أصول هلنستية)', eraEn: '2nd c. AD (Roman copies of Hellenistic originals)',
+    unesco: true, lat: 32.8230, lon: 21.8600,
+    status: Preservation.needsCare, icon: Icons.temple_hindu,
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Apollo_Kitharoidos_BM_1380.jpg/960px-Apollo_Kitharoidos_BM_1380.jpg',
+    storyAr: 'من معبد أبولو في قورينا خرج تمثال أبولون حامل القيثارة، والمدينة كانت مركزًا لعبادة أبولو وكاهناتها. بعض هذه التماثيل محفوظ اليوم في متاحف عالمية.',
+    storyEn: 'From the Temple of Apollo at Cyrene came the statue of Apollo holding a kithara; the city was a major centre of Apollo’s cult and priestesses. Some of these statues are now in museums abroad.',
+    history: [
+      ('القرن 7 ق.م', 'تأسيس عبادة أبولو في قورينا', 'Cult of Apollo established at Cyrene'),
+      ('القرن 2 م', 'تماثيل رخامية رومانية لأبولون', 'Roman marble statues of Apollo'),
+      ('القرن 19', 'نقل تماثيل من قورينا إلى المتحف البريطاني', 'Statues taken from Cyrene to the British Museum'),
+    ],
+  ),
 ];
+
+// Extra high-resolution photos (Wikimedia Commons) per site id.
+const kGallery = <String, List<String>>{
+  'leptis': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Leptis_libya.jpg/960px-Leptis_libya.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Forum_Leptis_Magna_04.JPG/960px-Forum_Leptis_Magna_04.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Leptis_Magna_Theatre.jpg/960px-Leptis_Magna_Theatre.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Leptis_Magna_-_Severan_Basilika.jpg/960px-Leptis_Magna_-_Severan_Basilika.jpg',
+  ],
+  'cyrene': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Archaeological_Site_of_Cyrene-109023.jpg/960px-Archaeological_Site_of_Cyrene-109023.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Archaeological_Site_of_Cyrene-109025.jpg/960px-Archaeological_Site_of_Cyrene-109025.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg/960px-Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Cyrene_Historical_Site.jpg/960px-Cyrene_Historical_Site.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
+  ],
+  'sabratha': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Theatre_of_Sabratha%2C_Libya.jpg/960px-Theatre_of_Sabratha%2C_Libya.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg/960px-Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Via_del_Teatro%2C_Sabratha_%2819416%29.jpg/960px-Via_del_Teatro%2C_Sabratha_%2819416%29.jpg',
+  ],
+  'ghadames': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Ghadames%2C_2006.jpg/960px-Ghadames%2C_2006.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Ghadames_Old_city_from_the_air.jpg/960px-Ghadames_Old_city_from_the_air.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Covered_Street_in_Ghadames_%285282815853%29.jpg/960px-Covered_Street_in_Ghadames_%285282815853%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Ghadames_street_at_moring.jpg/960px-Ghadames_street_at_moring.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Libya_Ghadames_Old_Town_Wall_Entrance.JPG/960px-Libya_Ghadames_Old_Town_Wall_Entrance.JPG',
+  ],
+  'redcastle': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg/960px-Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Red_Castle_Museum.jpg/960px-Red_Castle_Museum.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Roman_mosaic%2C_Tripoli_Museum%2C_Libya.jpg/960px-Roman_mosaic%2C_Tripoli_Museum%2C_Libya.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Three_Graces%2C_Tripoli_Museum%2C_Libya_%283042179766%29.jpg/960px-Three_Graces%2C_Tripoli_Museum%2C_Libya_%283042179766%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/The_Red_Castle.jpg/960px-The_Red_Castle.jpg',
+  ],
+  'silin': [
+    'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
+  ],
+  'zliten': [
+    'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/f/f3/Gladiators_from_the_Zliten_mosaic_2.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/5/51/Beasts_and_criminals_from_the_Zliten_mosaic.jpg',
+  ],
+  'medusa': [
+    'https://upload.wikimedia.org/wikipedia/commons/7/7c/Gorgone_libia_by_marcotambara.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Forum_Leptis_Magna_04.JPG/960px-Forum_Leptis_Magna_04.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Leptis_Magna_-_Fragment_Kopf.jpg/960px-Leptis_Magna_-_Fragment_Kopf.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Red_Castle_Museum.jpg/960px-Red_Castle_Museum.jpg',
+  ],
+  'severus': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Bust_of_Septimius_Severus_%28GL_357%29.jpg/960px-Bust_of_Septimius_Severus_%28GL_357%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/b/bf/Septimius_Severus_bust_Thessalonike_Greece_01.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Leptis_Magna_Arch_of_Septimius_Severus.jpg/960px-Leptis_Magna_Arch_of_Septimius_Severus.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Severan_Basilica.JPG/960px-Severan_Basilica.JPG',
+  ],
+  'ghadames_ms': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Maghribi_script.jpg/960px-Maghribi_script.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Quran_19th_century_Nigeria%2C_Maghribi_style%2C_Boston_Museum_of_Fine_Arts.jpg/960px-Quran_19th_century_Nigeria%2C_Maghribi_style%2C_Boston_Museum_of_Fine_Arts.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Libya_Ghadames_Old_Town_Spring_Water_Pool.JPG/960px-Libya_Ghadames_Old_Town_Spring_Water_Pool.JPG',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Ghadames_-_Altstadt%2C_Thermalquelle.jpg/960px-Ghadames_-_Altstadt%2C_Thermalquelle.jpg',
+  ],
+  'apollo_cyrene': [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Apollo_Kitharoidos_BM_1380.jpg/960px-Apollo_Kitharoidos_BM_1380.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Marble_statue_of_Apollo_holding_a_kithara%2C_British_Museum.jpg/960px-Marble_statue_of_Apollo_holding_a_kithara%2C_British_Museum.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg/960px-Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg',
+  ],
+};
+
+// Documentary / tour video links. These are YouTube search pages (always valid);
+// the viewer picks the video. Sites without an entry fall back to a search.
+const kVideos = <String, List<(String, String, String)>>{
+  'leptis': [
+    ('جولة في لبدة الكبرى', 'Leptis Magna tour', 'https://www.youtube.com/results?search_query=Leptis+Magna+Libya+documentary'),
+    ('وثائقي: لبدة الكبرى', 'Leptis Magna (Arabic)', 'https://www.youtube.com/results?search_query=%D9%84%D8%A8%D8%AF%D8%A9+%D8%A7%D9%84%D9%83%D8%A8%D8%B1%D9%89+%D9%88%D8%AB%D8%A7%D8%A6%D9%82%D9%8A'),
+  ],
+  'cyrene': [
+    ('جولة في قورينا (شحات)', 'Cyrene tour', 'https://www.youtube.com/results?search_query=Cyrene+Libya+ancient+city+documentary'),
+    ('وثائقي: شحات وقورينا', 'Shahhat & Cyrene (Arabic)', 'https://www.youtube.com/results?search_query=%D9%82%D9%88%D8%B1%D9%8A%D9%86%D8%A7+%D8%B4%D8%AD%D8%A7%D8%AA+%D9%88%D8%AB%D8%A7%D8%A6%D9%82%D9%8A'),
+  ],
+  'ghadames': [
+    ('جولة في غدامس القديمة', 'Ghadames old town tour', 'https://www.youtube.com/results?search_query=Ghadames+Libya+old+town+documentary'),
+    ('وثائقي: لؤلؤة الصحراء غدامس', 'Ghadames (Arabic)', 'https://www.youtube.com/results?search_query=%D8%BA%D8%AF%D8%A7%D9%85%D8%B3+%D8%A7%D9%84%D9%85%D8%AF%D9%8A%D9%86%D8%A9+%D8%A7%D9%84%D9%82%D8%AF%D9%8A%D9%85%D8%A9+%D9%88%D8%AB%D8%A7%D8%A6%D9%82%D9%8A'),
+  ],
+  'redcastle': [
+    ('جولة في متحف السراي الحمراء', 'Red Castle Museum tour', 'https://www.youtube.com/results?search_query=Red+Castle+Museum+Tripoli+Libya'),
+    ('وثائقي: السرايا الحمراء', 'Assaraya Alhamra (Arabic)', 'https://www.youtube.com/results?search_query=%D8%A7%D9%84%D8%B3%D8%B1%D8%A7%D9%8A%D8%A7+%D8%A7%D9%84%D8%AD%D9%85%D8%B1%D8%A7%D8%A1+%D8%B7%D8%B1%D8%A7%D8%A8%D9%84%D8%B3+%D9%88%D8%AB%D8%A7%D8%A6%D9%82%D9%8A'),
+  ],
+  'medusa': [
+    ('ميدوسا ولبدة الكبرى', 'Medusa of Leptis Magna', 'https://www.youtube.com/results?search_query=Medusa+Leptis+Magna+Severan+Forum'),
+    ('جولة في متحف السراي الحمراء', 'Red Castle Museum tour', 'https://www.youtube.com/results?search_query=Red+Castle+Museum+Tripoli+Libya'),
+  ],
+  'severus': [
+    ('سيبتيموس سيفيروس: الإمبراطور الليبي', 'Septimius Severus documentary', 'https://www.youtube.com/results?search_query=Septimius+Severus+emperor+documentary'),
+    ('جولة في لبدة الكبرى', 'Leptis Magna tour', 'https://www.youtube.com/results?search_query=Leptis+Magna+Libya+documentary'),
+  ],
+  'zliten': [
+    ('فسيفساء زليتن', 'Zliten mosaic', 'https://www.youtube.com/results?search_query=Zliten+mosaic+Libya'),
+    ('فيلا سيلين', 'Villa Silin', 'https://www.youtube.com/results?search_query=Villa+Silin+Libya+mosaics'),
+  ],
+  'silin': [
+    ('فيلا سيلين', 'Villa Silin', 'https://www.youtube.com/results?search_query=Villa+Silin+Libya+mosaics'),
+  ],
+  'ghadames_ms': [
+    ('مخطوطات غدامس', 'Ghadames manuscripts', 'https://www.youtube.com/results?search_query=%D9%85%D8%AE%D8%B7%D9%88%D8%B7%D8%A7%D8%AA+%D8%BA%D8%AF%D8%A7%D9%85%D8%B3'),
+    ('جولة في غدامس القديمة', 'Ghadames old town tour', 'https://www.youtube.com/results?search_query=Ghadames+Libya+old+town+documentary'),
+  ],
+  'apollo_cyrene': [
+    ('معبد أبولو في قورينا', 'Temple of Apollo at Cyrene', 'https://www.youtube.com/results?search_query=Temple+of+Apollo+Cyrene+Libya'),
+    ('جولة في قورينا (شحات)', 'Cyrene tour', 'https://www.youtube.com/results?search_query=Cyrene+Libya+ancient+city+documentary'),
+  ],
+};
 
 class RestorationLog {
   final String siteName, materials, report;
@@ -1213,7 +1444,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const ErthLogo(size: 84),
+                      ErthLogo(
+                        size: 84,
+                        onTap: () =>
+                            Navigator.of(context).popUntil((r) => r.isFirst),
+                      ),
                       const SizedBox(height: 8),
                       Text(s.t('منصة التراث الليبي', 'Libyan Heritage Platform'),
                           style: TextStyle(color: p.text2)),
@@ -1415,19 +1650,39 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: const ErthLogo(size: 34),
+        title: ErthLogo(
+          size: 34,
+          onTap: () {
+            // Close any open sheet/dialog and go back to the Home feed.
+            Navigator.of(context).popUntil((r) => r.isFirst);
+            s.setTab(0);
+          },
+        ),
         actions: topControls(context, s, account: true),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: p.line),
         ),
       ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1100),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: KeyedSubtree(key: ValueKey(s.tab), child: pages[s.tab]),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          // Glossy heritage beige: soft highlight at the top, deeper tone below.
+          gradient: Theme.of(context).brightness == Brightness.dark
+              ? null
+              : const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFAF7F2), Color(0xFFF5F1E6), Color(0xFFECE5D8)],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1100),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: KeyedSubtree(key: ValueKey(s.tab), child: pages[s.tab]),
+            ),
           ),
         ),
       ),
@@ -1756,6 +2011,8 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
                     '${s.lat.toStringAsFixed(4)}°N, ${s.lon.toStringAsFixed(4)}°E')),
           ]),
           const SizedBox(height: 16),
+          _GalleryStrip(site: s, ar: ar),
+          const SizedBox(height: 16),
           Text(ar ? 'القصة والتراث' : 'Story & heritage',
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
@@ -1793,6 +2050,8 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
               ]),
             ),
           const SizedBox(height: 8),
+          _VideoSection(site: s, ar: ar),
+          const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () {
               Navigator.of(sheetCtx).pop();
@@ -1811,6 +2070,185 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
       ),
     ),
   );
+}
+
+// ───────────────────── Gallery & videos (site sheet) ────────────────────────
+
+class _GalleryStrip extends StatelessWidget {
+  final HeritageSite site;
+  final bool ar;
+  const _GalleryStrip({required this.site, required this.ar});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final photos = site.photos;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(Icons.photo_library_outlined, size: 20, color: p.primary),
+        const SizedBox(width: 8),
+        Text(ar ? 'معرض الصور' : 'Photo gallery',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+        const SizedBox(width: 8),
+        Text('${photos.length}', style: TextStyle(color: p.text2)),
+      ]),
+      const SizedBox(height: 10),
+      SizedBox(
+        height: 150,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: photos.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (ctx, i) => InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => _openViewer(ctx, photos, i),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                width: 210,
+                child: _NetPhoto(photos[i], site),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ]);
+  }
+
+  void _openViewer(BuildContext context, List<String> photos, int start) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(children: [
+          PageView.builder(
+            controller: PageController(initialPage: start),
+            itemCount: photos.length,
+            itemBuilder: (_, i) => InteractiveViewer(
+              minScale: 1,
+              maxScale: 5,
+              child: Center(
+                child: Image.network(
+                  photos[i],
+                  fit: BoxFit.contain,
+                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                  errorBuilder: (_, __, ___) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white54,
+                      size: 64),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: SafeArea(
+              child: IconButton.filledTonal(
+                onPressed: () => Navigator.of(ctx).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _NetPhoto extends StatelessWidget {
+  final String url;
+  final HeritageSite site;
+  const _NetPhoto(this.url, this.site);
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+      errorBuilder: (_, __, ___) => _Illustration(site),
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : _Illustration(site),
+    );
+  }
+}
+
+class _VideoSection extends StatelessWidget {
+  final HeritageSite site;
+  final bool ar;
+  const _VideoSection({required this.site, required this.ar});
+
+  Future<void> _open(BuildContext context, String url) async {
+    final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ar ? 'تعذر فتح الرابط' : 'Could not open the link')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(Icons.smart_display_outlined, size: 20, color: p.primary),
+        const SizedBox(width: 8),
+        Text(ar ? 'فيديوهات وثائقية' : 'Documentary videos',
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+      ]),
+      const SizedBox(height: 10),
+      for (final v in site.videos)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Material(
+            color: p.card,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _open(context, v.$3),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: p.line),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: p.primary,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(Icons.play_arrow_rounded, color: p.accent, size: 34),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(ar ? v.$1 : v.$2,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15)),
+                          const SizedBox(height: 2),
+                          Text('YouTube',
+                              style: TextStyle(color: p.text2, fontSize: 12)),
+                        ]),
+                  ),
+                  Icon(Icons.open_in_new, size: 18, color: p.text2),
+                ]),
+              ),
+            ),
+          ),
+        ),
+    ]);
+  }
 }
 
 // ─────────────────────────────── Home ───────────────────────────────────────
@@ -3326,7 +3764,7 @@ void _showInstallGuide(BuildContext context, AppState s, {bool installed = false
 void showInstallSheet(BuildContext context, AppState s) {
   const red = Color(0xFF8B261D);
   const bronze = Color(0xFFC59B27);
-  const beige = Color(0xFFF6F1E7);
+  const beige = Color(0xFFF5F1E6);
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: red,
