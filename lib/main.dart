@@ -3344,10 +3344,23 @@ void showInstallSheet(BuildContext context, AppState s) {
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Container(
-                padding: const EdgeInsets.all(14),
-                decoration: const BoxDecoration(color: beige, shape: BoxShape.circle),
-                child: CustomPaint(
-                    size: const Size(54, 54), painter: _ArchPainter(red, bronze)),
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6E1C15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: bronze, width: 3),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Transform.scale(
+                  scale: 1.7,
+                  child: Image.asset(
+                    'assets/logo.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => CustomPaint(
+                        painter: _ArchPainter(beige, bronze)),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Text(s.t('حمّل تطبيق إرث (ERTH) على جهازك', 'Install ERTH App'),
