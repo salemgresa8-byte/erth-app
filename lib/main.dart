@@ -194,9 +194,25 @@ class ErthLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    final icon = CustomPaint(
-      size: Size(size, size),
-      painter: _ArchPainter(p.primary, p.accent),
+    // The logo art is light cream, so it sits on a Greek-red badge.
+    final icon = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: p.primary,
+        borderRadius: BorderRadius.circular(size * 0.28),
+        border: Border.all(color: p.accent, width: size * 0.04),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Transform.scale(
+        scale: 1.7,
+        child: Image.asset(
+          'assets/logo.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => CustomPaint(
+              painter: _ArchPainter(const Color(0xFFF6F1E7), p.accent)),
+        ),
+      ),
     );
     if (!showText) return icon;
     return Row(
