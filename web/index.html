@@ -18,19 +18,47 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="إرث - ERTH | منصة التراث الليبي">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="erth_project">
+  <meta name="apple-mobile-web-app-title" content="ERTH">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>erth_project</title>
+  <title>إرث | ERTH</title>
+  <meta name="theme-color" content="#8B261D">
   <link rel="manifest" href="manifest.json">
+  <script>
+    // PWA install support: capture the install prompt for the Flutter UI.
+    window.deferredPrompt = null;
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      window.deferredPrompt = e;
+    });
+    window.addEventListener("appinstalled", function () {
+      window.deferredPrompt = null;
+    });
+    window.erthCanInstall = function () { return !!window.deferredPrompt; };
+    window.erthIsStandalone = function () {
+      return window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+    };
+    window.erthIsIOS = function () {
+      return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    };
+    window.erthInstall = async function () {
+      if (!window.deferredPrompt) return "unavailable";
+      window.deferredPrompt.prompt();
+      var choice = await window.deferredPrompt.userChoice;
+      window.deferredPrompt = null;
+      return choice.outcome;
+    };
+  </script>
 </head>
 <body>
   <!--
