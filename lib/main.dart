@@ -348,6 +348,52 @@ const kCategoryEn = {
 };
 final kCategories = kCategoryEn.keys.toList();
 
+class Persona {
+  final String nameAr, titleAr;
+  final List<String> ids;
+  final IconData icon;
+  const Persona(this.nameAr, this.titleAr, this.ids, this.icon);
+}
+
+const kPersonas = <String, Persona>{
+  'A': Persona('عاشق الفنون والتحف', 'مواقع تناسب شغفك بالفنون والمنحوتات',
+      ['redcastle', 'silin', 'apollo_cyrene', 'ptolemais'], Icons.palette),
+  'B': Persona('مستكشف الألغاز وتاريخ الحضارات',
+      'مواقع تناسب شغفك بالألغاز وعصور ما قبل التاريخ',
+      ['acacus', 'garama', 'waw', 'gaberoun'], Icons.travel_explore),
+  'C': Persona('عاشق الحياة اليومية والتراث', 'مواقع تروي لك كيف عاش الأجداد',
+      ['ghadames', 'qasralhaj', 'marcus'], Icons.home_work),
+  'D': Persona('مهندس العمارة والصوتيات', 'روائع الهندسة المعمارية والصوتيات القديمة',
+      ['sabratha', 'leptis', 'ptolemais'], Icons.architecture),
+};
+
+const kQuiz = <(String, List<String>)>[
+  ('ما الذي يلفت نظرك أولاً عند رؤية قطعة أثرية؟', [
+    'تفاصيل نقوشها وجمال تصميمها ودقة صناعتها.',
+    'السر التاريخي أو اللغز الذي تقف خلفه هذه القطعة.',
+    'كيفية استخدامها في الحياة اليومية أو الممارسات الشعبية القديمة.',
+    'التطور الهندسي أو التكنولوجي المبتكر في ابتكارها.',
+  ]),
+  ('لو كان بإمكانك قراءة كتاب واحد عن الآثار، ماذا تختار؟', [
+    '«أجمل التحف الفنية والمنحوتات في العالم القديم».',
+    '«أكبر الألغاز الأثرية والمقابر المفقودة عبر التاريخ».',
+    '«يوميات إنسان قديم: كيف كانت تعيش الشعوب العادية؟».',
+    '«عبقرية المعمار القديم: من بناء الأهرامات إلى السدود».',
+  ]),
+  ('ما نوع الموقع الأثري الذي تحلم بزيارته واستكشافه؟', [
+    'معبد أو قصر ممتلئ بالتماثيل واللوحات والزخارف.',
+    'مدينة مفقودة تحت الماء أو منطقة تنقيب مليئة بالغموض.',
+    'قرية أثرية كاملة تظهر كيف كان يطهو ويلبس ويسكن الناس.',
+    'قنوات ري قديمة، مسارح رومانية ذات صوتيات مذهلة، أو شبكات طرق.',
+  ]),
+  ('أيٌّ من هذه الأسئلة يثير فضولك أكثر؟', [
+    'كيف استطاع الفنان القديم نحت هذه التفاصيل الدقيقة بدون أدوات حديثة؟',
+    'ما الذي حدث لهذه الحضارة وأدى لاندثارها فجأة؟',
+    'كيف كانت الأسر القديمة تحتفل وتتعالج وتتبادل البضائع؟',
+    'كيف جُلبت هذه الأحجار الضخمة ورُفعت بدون آلات حديثة؟',
+  ]),
+];
+
 const kSites = <HeritageSite>[
   HeritageSite(
     id: 'leptis', nameAr: 'لبدة الكبرى', nameEn: 'Leptis Magna',
@@ -788,7 +834,72 @@ class AppState extends ChangeNotifier {
   String category = kAll;
   String? notice;
 
+  // Visitor heritage-interest quiz + itinerary
+  String persona = ''; // '', 'A', 'B', 'C', 'D'
+  bool retakingQuiz = false;
+  Set<String> saved = {};
+
   SharedPreferences? _prefs;
+
+  bool get isExpertRole => role == UserRole.expert;
+  bool get quizDone => persona.isNotEmpty;
+  bool get showQuiz => !isExpertRole && (!quizDone || retakingQuiz);
+
+  void completeQuiz(List<String> answers) {
+    final counts = <String, int>{};
+    for (final a in answers) {
+      counts[a] = (counts[a] ?? 0) + 1;
+    }
+    var best = 'A';
+    var max = -1;
+    // Ties resolve in favour of the earliest answer given.
+    for (final a in answers) {
+      if (counts[a]! > max) {
+        max = counts[a]!;
+        best = a;
+      }
+    }
+    persona = best;
+    retakingQuiz = false;
+    notifyListeners();
+    _save();
+  }
+
+  void resetQuiz() {
+    persona = '';
+    retakingQuiz = true;
+    tab = 0;
+    notifyListeners();
+    _save();
+  }
+
+  void cancelQuiz() {
+    retakingQuiz = false;
+    notifyListeners();
+  }
+
+  void toggleSaved(String id) {
+    saved.contains(id) ? saved.remove(id) : saved.add(id);
+    notifyListeners();
+    _save();
+  }
+
+  List<String> touristTags(HeritageSite x) {
+    final tags = <String>[];
+    if (persona.isNotEmpty && (kPersonas[persona]?.ids.contains(x.id) ?? false)) {
+      tags.add('موصى به لزيارتك');
+    }
+    if (x.unesco) tags.add('موقع يونسكو');
+    if (const {'تحف فنية', 'تحف أثرية', 'شخصيات تاريخية', 'مخطوطات نادرة'}
+        .contains(x.category)) {
+      tags.add('تحفة فنية');
+    }
+    if (const {'واحات طبيعية', 'نقوش صخرية'}.contains(x.category)) {
+      tags.add('مناظر طبيعية');
+    }
+    if (tags.isEmpty) tags.add('موصى به لزيارتك');
+    return tags;
+  }
 
   final List<RestorationLog> logs = [
     RestorationLog(
@@ -835,6 +946,8 @@ class AppState extends ChangeNotifier {
       license = p.getString('license') ?? '';
       city = p.getString('city') ?? '';
       specialization = p.getString('specialization') ?? '';
+      persona = p.getString('quizPersona') ?? '';
+      saved = (p.getStringList('savedSites') ?? <String>[]).toSet();
     } catch (e) {
       debugPrint('[ERTH] prefs load failed: $e');
     }
@@ -855,6 +968,8 @@ class AppState extends ChangeNotifier {
       await p.setString('license', license);
       await p.setString('city', city);
       await p.setString('specialization', specialization);
+      await p.setString('quizPersona', persona);
+      await p.setStringList('savedSites', saved.toList());
     } catch (e) {
       debugPrint('[ERTH] prefs save failed: $e');
     }
@@ -1041,6 +1156,7 @@ class AppState extends ChangeNotifier {
 
   void setRole(UserRole r) {
     role = r;
+    tab = 0;
     notifyListeners();
     _save();
   }
@@ -1640,13 +1756,22 @@ class AppShell extends StatelessWidget {
     final s = state;
     final p = Pal.of(context);
     final isExpert = s.role == UserRole.expert;
-    final pages = <Widget>[
-      HomeTab(state: s),
-      SitesTab(state: s),
-      ScannerTab(state: s),
-      LogsTab(state: s),
-      AccountTab(state: s),
-    ];
+    final pages = isExpert
+        ? <Widget>[
+            HomeTab(state: s),
+            SitesTab(state: s),
+            ScannerTab(state: s),
+            LogsTab(state: s),
+            AccountTab(state: s),
+          ]
+        : <Widget>[
+            HomeTab(state: s),
+            SitesTab(state: s),
+            ItineraryTab(state: s),
+            ChatSheet(state: s),
+            AccountTab(state: s),
+          ];
+    final tabIndex = s.tab.clamp(0, pages.length - 1);
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
@@ -1681,12 +1806,15 @@ class AppShell extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 1100),
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
-              child: KeyedSubtree(key: ValueKey(s.tab), child: pages[s.tab]),
+              child: KeyedSubtree(
+                  key: ValueKey('${s.role.name}$tabIndex'), child: pages[tabIndex]),
             ),
           ),
         ),
       ),
-      floatingActionButton: Column(
+      floatingActionButton: !isExpert
+          ? null
+          : Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -1714,30 +1842,53 @@ class AppShell extends StatelessWidget {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: s.tab,
+        selectedIndex: tabIndex,
         onDestinationSelected: s.setTab,
-        destinations: [
-          NavigationDestination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home, color: p.primary),
-              label: s.t('الرئيسية', 'Home')),
-          NavigationDestination(
-              icon: const Icon(Icons.account_balance_outlined),
-              selectedIcon: Icon(Icons.account_balance, color: p.primary),
-              label: s.t('المواقع', 'Sites')),
-          NavigationDestination(
-              icon: const Icon(Icons.document_scanner_outlined),
-              selectedIcon: Icon(Icons.document_scanner, color: p.primary),
-              label: s.t('الماسح', 'Scanner')),
-          NavigationDestination(
-              icon: const Icon(Icons.history_edu_outlined),
-              selectedIcon: Icon(Icons.history_edu, color: p.primary),
-              label: s.t('سجل الترميم', 'Logs')),
-          NavigationDestination(
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person, color: p.primary),
-              label: s.t('الحساب', 'Account')),
-        ],
+        destinations: isExpert
+            ? [
+                NavigationDestination(
+                    icon: const Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home, color: p.primary),
+                    label: s.t('الرئيسية', 'Home')),
+                NavigationDestination(
+                    icon: const Icon(Icons.account_balance_outlined),
+                    selectedIcon: Icon(Icons.account_balance, color: p.primary),
+                    label: s.t('المواقع', 'Sites')),
+                NavigationDestination(
+                    icon: const Icon(Icons.document_scanner_outlined),
+                    selectedIcon: Icon(Icons.document_scanner, color: p.primary),
+                    label: s.t('الماسح', 'Scanner')),
+                NavigationDestination(
+                    icon: const Icon(Icons.history_edu_outlined),
+                    selectedIcon: Icon(Icons.history_edu, color: p.primary),
+                    label: s.t('سجل الترميم', 'Logs')),
+                NavigationDestination(
+                    icon: const Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person, color: p.primary),
+                    label: s.t('الحساب', 'Account')),
+              ]
+            : [
+                NavigationDestination(
+                    icon: const Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home, color: p.primary),
+                    label: s.t('الرئيسية', 'Home')),
+                NavigationDestination(
+                    icon: const Icon(Icons.explore_outlined),
+                    selectedIcon: Icon(Icons.explore, color: p.primary),
+                    label: s.t('استكشف', 'Explore')),
+                NavigationDestination(
+                    icon: const Icon(Icons.bookmark_border),
+                    selectedIcon: Icon(Icons.bookmark, color: p.primary),
+                    label: s.t('مساري', 'My trip')),
+                NavigationDestination(
+                    icon: const Icon(Icons.auto_awesome_outlined),
+                    selectedIcon: Icon(Icons.auto_awesome, color: p.primary),
+                    label: s.t('المرشد الذكي', 'AI guide')),
+                NavigationDestination(
+                    icon: const Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person, color: p.primary),
+                    label: s.t('حسابي', 'My account')),
+              ],
       ),
     );
   }
@@ -1797,6 +1948,62 @@ class _StatusBadge extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
       ]),
+    );
+  }
+}
+
+class _TouristTag extends StatelessWidget {
+  final String text;
+  const _TouristTag(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final icon = switch (text) {
+      'موقع يونسكو' => Icons.public,
+      'موصى به لزيارتك' => Icons.thumb_up_alt,
+      'تحفة فنية' => Icons.palette,
+      _ => Icons.landscape,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: p.accent),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 13, color: p.accent),
+        const SizedBox(width: 5),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+      ]),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  final AppState state;
+  final String id;
+  const _SaveButton(this.state, this.id);
+
+  @override
+  Widget build(BuildContext context) {
+    final on = state.saved.contains(id);
+    final p = Pal.of(context);
+    return Material(
+      color: Colors.black.withValues(alpha: 0.6),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => state.toggleSaved(id),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(on ? Icons.bookmark : Icons.bookmark_border,
+              size: 20, color: on ? p.accent : Colors.white),
+        ),
+      ),
     );
   }
 }
@@ -1899,8 +2106,20 @@ class _SiteCardState extends State<SiteCard> {
                   child: Stack(fit: StackFit.expand, children: [
                     SiteImage(s),
                     PositionedDirectional(
-                        top: 10, start: 10, child: _StatusBadge(s.status, ar)),
-                    if (s.unesco)
+                        top: 10,
+                        start: 10,
+                        child: widget.state.isExpertRole
+                            ? _StatusBadge(s.status, ar)
+                            : _TouristTag(widget.state.touristTags(s).first)),
+                    if (!widget.state.isExpertRole)
+                      PositionedDirectional(
+                        bottom: 10,
+                        end: 10,
+                        child: ListenableBuilder(
+                            listenable: widget.state,
+                            builder: (_, __) => _SaveButton(widget.state, s.id)),
+                      ),
+                    if (s.unesco && widget.state.isExpertRole)
                       PositionedDirectional(
                         top: 10,
                         end: 10,
@@ -1990,10 +2209,27 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
               child: Text(s.name(ar),
                   style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
             ),
-            _StatusBadge(s.status, ar),
+            if (state.isExpertRole)
+              _StatusBadge(s.status, ar)
+            else
+              ListenableBuilder(
+                listenable: state,
+                builder: (_, __) => IconButton.filledTonal(
+                  tooltip: state.saved.contains(s.id) ? 'إزالة من مساري' : 'أضف إلى مساري',
+                  onPressed: () => state.toggleSaved(s.id),
+                  icon: Icon(state.saved.contains(s.id)
+                      ? Icons.bookmark
+                      : Icons.bookmark_border),
+                ),
+              ),
           ]),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
+            if (!state.isExpertRole)
+              for (final tg in state.touristTags(s))
+                Chip(
+                    avatar: Icon(Icons.verified, size: 16, color: p.accent),
+                    label: Text(tg)),
             Chip(
                 avatar: Icon(Icons.place, size: 16, color: p.accent),
                 label: Text(s.region(ar))),
@@ -2001,7 +2237,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
             Chip(
                 avatar: Icon(Icons.schedule, size: 16, color: p.accent),
                 label: Text(s.era(ar))),
-            if (s.unesco)
+            if (s.unesco && state.isExpertRole)
               Chip(
                   avatar: Icon(Icons.public, size: 16, color: p.accent),
                   label: Text(ar ? 'تراث عالمي - اليونسكو' : 'UNESCO World Heritage')),
@@ -2019,7 +2255,10 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
           const SizedBox(height: 8),
           Text(s.story(ar), style: const TextStyle(height: 1.8, fontSize: 15)),
           const SizedBox(height: 20),
-          Text(ar ? 'تاريخ الموقع والترميم' : 'Site & restoration history',
+          Text(
+              state.isExpertRole
+                  ? (ar ? 'تاريخ الموقع والترميم' : 'Site & restoration history')
+                  : (ar ? 'تاريخ الموقع' : 'Site timeline'),
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
           const SizedBox(height: 12),
@@ -2303,6 +2542,21 @@ class HomeTab extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         if (s.offline) _OfflineBanner(s),
+        if (!isExpert)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            alignment: Alignment.topCenter,
+            child: s.showQuiz
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: HeritageQuizCard(state: s))
+                : s.quizDone
+                    ? Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: _Recommendations(state: s))
+                    : const SizedBox.shrink(),
+          ),
         LayoutBuilder(builder: (context, c) {
           final cards = isExpert
               ? [
@@ -2374,6 +2628,251 @@ class HomeTab extends StatelessWidget {
         const SizedBox(height: 90),
       ],
     );
+  }
+}
+
+class HeritageQuizCard extends StatefulWidget {
+  final AppState state;
+  const HeritageQuizCard({super.key, required this.state});
+
+  @override
+  State<HeritageQuizCard> createState() => _HeritageQuizCardState();
+}
+
+class _HeritageQuizCardState extends State<HeritageQuizCard> {
+  int q = 0;
+  final List<String> answers = [];
+
+  void _pick(String letter) {
+    if (q + 1 < kQuiz.length) {
+      setState(() {
+        answers.add(letter);
+        q++;
+      });
+    } else {
+      widget.state.completeQuiz([...answers, letter]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final item = kQuiz[q];
+    const letters = ['A', 'B', 'C', 'D'];
+    const marks = ['أ', 'ب', 'ج', 'د'];
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: p.accent.withValues(alpha: 0.6), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 6)),
+        ],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.quiz, color: p.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('استبيان الاهتمامات الأثرية',
+                style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+          ),
+          if (widget.state.retakingQuiz)
+            TextButton(
+                onPressed: widget.state.cancelQuiz, child: const Text('إلغاء')),
+        ]),
+        const SizedBox(height: 10),
+        Row(children: [
+          Text('السؤال ${q + 1} من ${kQuiz.length}',
+              style: TextStyle(color: p.text2, fontSize: 12)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: (q + 1) / kQuiz.length),
+                duration: const Duration(milliseconds: 350),
+                builder: (_, v, __) => LinearProgressIndicator(
+                    value: v, minHeight: 7, color: p.accent, backgroundColor: p.line),
+              ),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 16),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (c, a) => FadeTransition(
+              opacity: a,
+              child: SlideTransition(
+                  position: Tween(begin: const Offset(0.06, 0), end: Offset.zero)
+                      .animate(a),
+                  child: c)),
+          child: Column(
+            key: ValueKey(q),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('س${q + 1}: ${item.$1}',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800, height: 1.5)),
+              const SizedBox(height: 12),
+              for (var i = 0; i < 4; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      alignment: AlignmentDirectional.centerStart,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                      side: BorderSide(color: p.line),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () => _pick(letters[i]),
+                    child: Row(children: [
+                      CircleAvatar(
+                          radius: 13,
+                          backgroundColor: p.primary.withValues(alpha: 0.12),
+                          child: Text(marks[i],
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: p.primary,
+                                  fontWeight: FontWeight.w800))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Text(item.$2[i],
+                              style: TextStyle(color: p.text, height: 1.4))),
+                    ]),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Recommendations extends StatelessWidget {
+  final AppState state;
+  const _Recommendations({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final per = kPersonas[state.persona]!;
+    final sites = [
+      for (final id in per.ids) kSites.firstWhere((x) => x.id == id)
+    ];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: p.accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(children: [
+          Icon(per.icon, color: p.primary, size: 30),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('شخصيتك الأثرية: ${per.nameAr}',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+                onPressed: state.resetQuiz,
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('إعادة تحديد اهتماماتي'),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 16),
+      Text(per.titleAr,
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 12),
+      SizedBox(
+        height: 300,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            for (final x in sites)
+              SizedBox(
+                width: 270,
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(end: 14),
+                  child: SiteCard(site: x, state: state),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ]);
+  }
+}
+
+class ItineraryTab extends StatelessWidget {
+  final AppState state;
+  const ItineraryTab({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final s = state;
+    final list = kSites.where((x) => s.saved.contains(x.id)).toList();
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.bookmark_border, size: 60, color: p.accent),
+            const SizedBox(height: 12),
+            const Text('مسارك فارغ بعد',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Text('اضغط على أيقونة الحفظ في أي موقع لإضافته إلى رحلتك.',
+                textAlign: TextAlign.center, style: TextStyle(color: p.text2)),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+                onPressed: () => s.setTab(1),
+                icon: const Icon(Icons.explore),
+                label: const Text('استكشف المواقع')),
+          ]),
+        ),
+      );
+    }
+    return LayoutBuilder(builder: (context, c) {
+      final cols = c.maxWidth > 900 ? 3 : (c.maxWidth > 560 ? 2 : 1);
+      return Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Row(children: [
+            Icon(Icons.route, color: p.primary),
+            const SizedBox(width: 8),
+            Text('مساري (${list.length})',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              mainAxisExtent: 330,
+            ),
+            itemCount: list.length,
+            itemBuilder: (_, i) => SiteCard(site: list[i], state: s),
+          ),
+        ),
+      ]);
+    });
   }
 }
 
@@ -3308,6 +3807,34 @@ class _AccountTabState extends State<AccountTab> {
           const SizedBox(height: 10),
           Text('${s.t('رقم الترخيص', 'License ID')}: ${s.license}',
               style: TextStyle(color: p.text2)),
+        ],
+        if (!isExpert) ...[
+          section(s.t('اهتماماتي الأثرية', 'My heritage interests')),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: p.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: p.line),
+            ),
+            child: Row(children: [
+              Icon(
+                  s.quizDone ? kPersonas[s.persona]!.icon : Icons.quiz_outlined,
+                  color: p.accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                    s.quizDone
+                        ? kPersonas[s.persona]!.nameAr
+                        : 'لم تُجرِ الاستبيان بعد',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              OutlinedButton(
+                onPressed: s.resetQuiz,
+                child: Text(s.quizDone ? 'إعادة تحديد اهتماماتي' : 'ابدأ الاستبيان'),
+              ),
+            ]),
+          ),
         ],
         section(s.t('التفضيلات', 'Preferences')),
         Container(
