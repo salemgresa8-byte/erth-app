@@ -301,8 +301,6 @@ class HeritageSite {
   String story(bool ar) => ar ? storyAr : storyEn;
 }
 
-const _commons = 'https://commons.wikimedia.org/wiki/Special:FilePath/';
-
 const kAll = 'الكل';
 const kCategoryEn = {
   'الكل': 'All',
@@ -322,7 +320,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 7 ق.م – القرن 4 م', eraEn: '7th c. BC – 4th c. AD',
     unesco: true, lat: 32.6385, lon: 14.2910,
     status: Preservation.underTreatment, icon: Icons.account_balance,
-    image: '${_commons}Leptis_Magna_Septimius_Severus_Arch.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Leptis_Magna_Arch_of_Septimius_Severus.jpg/960px-Leptis_Magna_Arch_of_Septimius_Severus.jpg',
     storyAr: 'ميناء فينيقي تحول إلى إحدى أجمل المدن الرومانية، وفيها وُلد الإمبراطور سبتيموس سيفيروس. تضم قوس النصر والسوق والمسرح والحمامات والبازيليكا.',
     storyEn: 'A Phoenician port turned into one of the finest Roman cities, birthplace of Emperor Septimius Severus. It holds the triumphal arch, market, theatre, baths and basilica.',
     history: [
@@ -337,7 +335,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 7 ق.م – القرن 4 م', eraEn: '7th c. BC – 4th c. AD',
     unesco: true, lat: 32.8250, lon: 21.8580,
     status: Preservation.needsCare, icon: Icons.temple_hindu,
-    image: '${_commons}Temple_of_Zeus_in_Cyrene.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Temple_of_Zeus_in_Cyrene.jpg/960px-Temple_of_Zeus_in_Cyrene.jpg',
     storyAr: 'مستعمرة إغريقية أسسها مستوطنون من جزيرة ثيرا، وكانت مركزًا للطب والفلسفة. يضم الموقع معبد زيوس ومعبد أبولو والأغورا.',
     storyEn: 'A Greek colony founded by settlers from Thera, a centre of medicine and philosophy. The site includes the Temple of Zeus, the Temple of Apollo and the Agora.',
     history: [
@@ -352,7 +350,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 6 ق.م – القرن 4 م', eraEn: '6th c. BC – 4th c. AD',
     unesco: true, lat: 32.8040, lon: 12.4850,
     status: Preservation.good, icon: Icons.theater_comedy,
-    image: '${_commons}Sabratha_Theatre.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Theatre_of_Sabratha%2C_Libya.jpg/960px-Theatre_of_Sabratha%2C_Libya.jpg',
     storyAr: 'محطة تجارية فينيقية صارت مدينة رومانية مزدهرة. يشتهر مسرحها الضخم بواجهته المكونة من ثلاثة طوابق من الأعمدة.',
     storyEn: 'A Phoenician trading post that became a thriving Roman city. Its huge theatre is famed for a three-storey columned stage front.',
     history: [
@@ -367,7 +365,7 @@ const kSites = <HeritageSite>[
     eraAr: '12000 ق.م – 100 م', eraEn: '12,000 BC – 100 AD',
     unesco: true, lat: 24.8000, lon: 10.5000,
     status: Preservation.critical, icon: Icons.landscape,
-    image: '${_commons}Tadrart_Acacus_Libya.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Libya_4985_Tadrart_Acacus_Luca_Galuzzi_2007.jpg/960px-Libya_4985_Tadrart_Acacus_Luca_Galuzzi_2007.jpg',
     storyAr: 'جبال صحراوية تضم آلاف الرسوم والنقوش الصخرية التي توثق تحولات المناخ وحياة الإنسان في الصحراء الكبرى.',
     storyEn: 'Desert mountains holding thousands of rock paintings and engravings that record climate change and human life in the Sahara.',
     history: [
@@ -382,7 +380,7 @@ const kSites = <HeritageSite>[
     eraAr: 'العصر الروماني – اليوم', eraEn: 'Roman era – present',
     unesco: true, lat: 30.1337, lon: 9.5000,
     status: Preservation.needsCare, icon: Icons.holiday_village,
-    image: '${_commons}Ghadames_old_town.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Libya_Ghadames_Old_Town_Rooftop_View.JPG/960px-Libya_Ghadames_Old_Town_Rooftop_View.JPG',
     storyAr: 'لؤلؤة الصحراء؛ مدينة طينية ذات أزقة مسقوفة تقي من الحرارة، وبيوت متصلة بأسطح خاصة بالنساء.',
     storyEn: 'The pearl of the desert: a mud-brick town with covered alleys that shield from heat and linked rooftops used by women.',
     history: [
@@ -397,7 +395,7 @@ const kSites = <HeritageSite>[
     eraAr: 'العصور القديمة – العثماني', eraEn: 'Antiquity – Ottoman',
     unesco: false, lat: 32.8997, lon: 13.1850,
     status: Preservation.underTreatment, icon: Icons.fort,
-    image: '${_commons}Assai_al-Hamra_Tripoli.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg/960px-Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg',
     storyAr: 'قلعة مطلة على البحر في قلب طرابلس، توالت عليها حضارات عدة، وتضم اليوم المتحف الوطني.',
     storyEn: 'A seafront fortress in the heart of Tripoli, shaped by many civilisations; it houses the national museum.',
     history: [
@@ -412,7 +410,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 2 م', eraEn: '2nd c. AD',
     unesco: false, lat: 32.8990, lon: 13.1870,
     status: Preservation.good, icon: Icons.account_balance_outlined,
-    image: '${_commons}Arch_of_Marcus_Aurelius_in_Tripoli.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Marcus_Aurelius_Arch_Tripoli_Libya.jpg/960px-Marcus_Aurelius_Arch_Tripoli_Libya.jpg',
     storyAr: 'قوس نصر رخامي شُيّد تكريمًا للإمبراطور ماركوس أوريليوس، وهو أبرز معلم روماني في مدينة طرابلس القديمة.',
     storyEn: 'A marble triumphal arch raised in honour of Emperor Marcus Aurelius, the best-known Roman monument of old Tripoli.',
     history: [
@@ -427,7 +425,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 3 ق.م – العصر البيزنطي', eraEn: '3rd c. BC – Byzantine',
     unesco: false, lat: 32.7078, lon: 20.9467,
     status: Preservation.needsCare, icon: Icons.view_column,
-    image: '${_commons}Ptolemais_Palace_of_Columns.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Ptolemais_site.jpg/960px-Ptolemais_site.jpg',
     storyAr: 'مدينة ساحلية هيلينستية سُميت على اسم بطليموس، اشتهرت بقصر الأعمدة وخزانات المياه الضخمة.',
     storyEn: 'A Hellenistic coastal city named for the Ptolemies, known for its Palace of Columns and vast cisterns.',
     history: [
@@ -442,7 +440,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 7 ق.م – العصر البيزنطي', eraEn: '7th c. BC – Byzantine',
     unesco: false, lat: 32.9000, lon: 21.9689,
     status: Preservation.critical, icon: Icons.sailing,
-    image: '${_commons}Apollonia_theatre_Libya.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Apollonia_portoriental.jpg/960px-Apollonia_portoriental.jpg',
     storyAr: 'ميناء قورينا القديم على البحر المتوسط، تضم بقايا كنائس بيزنطية ومسرحًا وحمامات، وتتعرض أجزاء منها للغمر والتآكل البحري.',
     storyEn: 'The ancient port of Cyrene, with Byzantine churches, a theatre and baths; parts are being eroded and submerged by the sea.',
     history: [
@@ -457,7 +455,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 13 م تقريبًا', eraEn: 'c. 13th c. AD',
     unesco: false, lat: 31.9167, lon: 12.1167,
     status: Preservation.needsCare, icon: Icons.warehouse,
-    image: '${_commons}Qasr_el-Haj_granary_in_Libya.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/6/66/Qaser_el_haj.jpg',
     storyAr: 'مخزن حبوب محصن (قصر) بُني بحجرات مقببة متراصة في طوابق، ويُعد من أجمل نماذج العمارة الأمازيغية للتخزين.',
     storyEn: 'A fortified granary (ksar) of stacked vaulted cells, among the finest examples of Amazigh storage architecture.',
     history: [
@@ -472,7 +470,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 1 ق.م – القرن 7 م', eraEn: '1st c. BC – 7th c. AD',
     unesco: false, lat: 26.5400, lon: 12.7300,
     status: Preservation.needsCare, icon: Icons.account_balance,
-    image: '${_commons}Germa_ruins_Libya.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Garma_%28Garama%29_-_Ruinen_der_antiken_Stadt_Garma_02.jpg/960px-Garma_%28Garama%29_-_Ruinen_der_antiken_Stadt_Garma_02.jpg',
     storyAr: 'عاصمة الجرمنتيين، حضارة صحراوية متقدمة اعتمدت على قنوات الفقارة لجلب المياه الجوفية وتحكمت في تجارة القوافل.',
     storyEn: 'Capital of the Garamantes, an advanced desert civilisation that used foggara tunnels to tap groundwater and ran the caravan trade.',
     history: [
@@ -487,7 +485,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 1–2 م', eraEn: '1st–2nd c. AD',
     unesco: false, lat: 32.5500, lon: 14.4500,
     status: Preservation.underTreatment, icon: Icons.grid_view,
-    image: '${_commons}Villa_Silin_Mosaic.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
     storyAr: 'فيلا رومانية ساحلية فاخرة اشتهرت بفسيفسائها الأرضية الملونة التي تصور مشاهد من الحياة اليومية والأساطير.',
     storyEn: 'A luxurious Roman coastal villa famed for its colourful floor mosaics of daily life and mythology.',
     history: [
@@ -502,7 +500,7 @@ const kSites = <HeritageSite>[
     eraAr: 'طبيعي', eraEn: 'Natural',
     unesco: false, lat: 26.5800, lon: 12.7700,
     status: Preservation.good, icon: Icons.water,
-    image: '${_commons}Ubari_Lakes_Libya.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Libya_5391_Ubari_Lakes_Luca_Galuzzi_2007.jpg/960px-Libya_5391_Ubari_Lakes_Luca_Galuzzi_2007.jpg',
     storyAr: 'بحيرات مالحة وسط كثبان رملية ضخمة في صحراء أوباري، تحيط بها أشجار النخيل وتمثل بقايا مناخ أكثر رطوبة.',
     storyEn: 'Salt lakes set among giant dunes in the Ubari sand sea, ringed by palms — remnants of a wetter climate.',
     history: [
@@ -517,7 +515,7 @@ const kSites = <HeritageSite>[
     eraAr: 'طبيعي - بركاني', eraEn: 'Natural – volcanic',
     unesco: false, lat: 24.9500, lon: 17.7500,
     status: Preservation.good, icon: Icons.volcano,
-    image: '${_commons}Waw_an_Namus_ISS013-E-21583.jpg?width=900',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Waw_an-Namus-gr%C3%BCner_See.jpg/960px-Waw_an-Namus-gr%C3%BCner_See.jpg',
     storyAr: 'فوهة بركانية خامدة في قلب الصحراء، فيها بحيرات صغيرة ملونة محاطة برمال سوداء، وتُعرف بـ«واحة البعوض».',
     storyEn: 'An extinct volcanic caldera deep in the desert with small coloured lakes in black ash — nicknamed the “Mosquito Oasis”.',
     history: [
