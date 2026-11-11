@@ -48,100 +48,530 @@ Future<void> main() async {
 
 // ─────────────────────────────── Palette ────────────────────────────────────
 
+// Premium dark-heritage tokens (from the "ERTH — Premium UI Redesign" spec).
+const kWine = Color(0xFF1E0709);
+const kObsidian = Color(0xFF100304);
+const kMaroon = Color(0xFF240B0E);
+const kGold = Color(0xFFC59B27);
+const kGoldLight = Color(0xFFDFB85C);
+const kGoldPale = Color(0xFFFAF2DC);
+const kRed = Color(0xFF8B261D);
+const kRedDeep = Color(0xFF6E1C15);
+const kBeige = Color(0xFFE6D7C3);
+const kMuted = Color(0xFFA89885);
+const kMono = Color(0xFFE8C766);
+
 class Pal {
   final Color bg, card, primary, accent, text, text2, line;
   const Pal(this.bg, this.card, this.primary, this.accent, this.text, this.text2,
       this.line);
 
-  static const light = Pal(Color(0xFFF5F1E6), Color(0xFFFFFDF9),
-      Color(0xFF8B261D), Color(0xFFC59B27), Color(0xFF231915),
-      Color(0xFF6E5A4F), Color(0xFFE6DCCB));
-  static const dark = Pal(Color(0xFF161210), Color(0xFF241E1B),
-      Color(0xFFA8382B), Color(0xFFD4AF37), Color(0xFFF3EBDD),
-      Color(0xFFB9A99B), Color(0xFF3A312C));
+  static const dark = Pal(kObsidian, kMaroon, kRed, kGold, kBeige, kMuted,
+      Color(0x4DC59B27));
+  static const light = dark;
 
-  static Pal of(BuildContext c) =>
-      Theme.of(c).brightness == Brightness.dark ? dark : light;
+  static Pal of(BuildContext c) => dark;
 }
 
-ThemeData buildTheme(Brightness b) {
-  final p = b == Brightness.dark ? Pal.dark : Pal.light;
-  final base = ThemeData(brightness: b, useMaterial3: true);
+const kGoldGradient = LinearGradient(
+  begin: AlignmentDirectional.topStart,
+  end: AlignmentDirectional.bottomEnd,
+  colors: [kGoldLight, kGold],
+);
+const kRedGradient = LinearGradient(
+  begin: AlignmentDirectional.topStart,
+  end: AlignmentDirectional.bottomEnd,
+  colors: [kRed, kRedDeep],
+);
+
+/// Full-screen wine → obsidian backdrop with a soft radial glow at the top.
+class HeritageBackdrop extends StatelessWidget {
+  final Widget child;
+  const HeritageBackdrop({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [kWine, kObsidian],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -1.1),
+            radius: 1.1,
+            colors: [Color(0x553A0D12), Color(0x00100304)],
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+TextStyle titleStyle([double size = 22]) => GoogleFonts.tajawal(
+    fontSize: size, fontWeight: FontWeight.w700, color: Colors.white);
+TextStyle subStyle([double size = 15]) => GoogleFonts.tajawal(
+    fontSize: size, fontWeight: FontWeight.w500, color: kBeige);
+TextStyle captionStyle([double size = 12.5]) => GoogleFonts.tajawal(
+    fontSize: size, fontWeight: FontWeight.w400, color: kMuted);
+TextStyle monoStyle([double size = 11.5]) =>
+    GoogleFonts.jetBrainsMono(fontSize: size, color: kMono);
+
+ThemeData buildTheme(Brightness _) {
+  const p = Pal.dark;
+  final base = ThemeData(brightness: Brightness.dark, useMaterial3: true);
+  OutlineInputBorder ib(Color c, [double w = 1]) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: c, width: w));
   return base.copyWith(
-    colorScheme: ColorScheme.fromSeed(seedColor: p.primary, brightness: b)
+    colorScheme: ColorScheme.fromSeed(seedColor: kRed, brightness: Brightness.dark)
         .copyWith(
-      primary: p.primary,
-      onPrimary: Colors.white,
-      secondary: p.accent,
-      onSecondary: Colors.black,
-      surface: p.card,
-      onSurface: p.text,
+      primary: kRed,
+      onPrimary: kBeige,
+      secondary: kGold,
+      onSecondary: kWine,
+      secondaryContainer: kRed,
+      onSecondaryContainer: kBeige,
+      surface: kMaroon,
+      onSurface: kBeige,
+      outline: p.line,
+      outlineVariant: p.line,
     ),
-    scaffoldBackgroundColor: p.bg,
-    textTheme: base.textTheme.apply(bodyColor: p.text, displayColor: p.text),
+    scaffoldBackgroundColor: Colors.transparent,
+    canvasColor: kMaroon,
+    dividerColor: p.line,
+    textTheme: GoogleFonts.tajawalTextTheme(base.textTheme)
+        .apply(bodyColor: kBeige, displayColor: Colors.white),
     appBarTheme: AppBarTheme(
-      backgroundColor: p.card,
-      foregroundColor: p.text,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: kBeige,
       elevation: 0,
-      scrolledUnderElevation: 1,
+      scrolledUnderElevation: 0,
+      titleTextStyle: titleStyle(18),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.card,
-      indicatorColor: p.primary.withValues(alpha: b == Brightness.dark ? 0.55 : 0.14),
-      labelTextStyle: const WidgetStatePropertyAll(
-          TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+      backgroundColor: const Color(0xFF140406),
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: Colors.transparent,
+      height: 70,
+      iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(
+          color: st.contains(WidgetState.selected) ? kGoldLight : kMuted,
+          size: 24)),
+      labelTextStyle: WidgetStateProperty.resolveWith((st) =>
+          GoogleFonts.tajawal(
+              fontSize: 12,
+              fontWeight: st.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w400,
+              color: st.contains(WidgetState.selected) ? kGoldLight : kMuted)),
     ),
+    cardColor: kMaroon,
+    chipTheme: base.chipTheme.copyWith(
+      backgroundColor: kMaroon,
+      side: BorderSide(color: p.line),
+      labelStyle: subStyle(13),
+      shape: const StadiumBorder(),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(backgroundColor: kWine),
+    dialogTheme: const DialogThemeData(backgroundColor: kMaroon),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: p.card,
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: p.line)),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: p.line)),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: p.accent, width: 1.6)),
+      fillColor: const Color(0xFF170609),
+      hintStyle: captionStyle(14),
+      labelStyle: captionStyle(14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+      border: ib(p.line),
+      enabledBorder: ib(p.line),
+      focusedBorder: ib(kGoldLight, 1.4),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: kRed,
+        foregroundColor: kBeige,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w700),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: kBeige,
+        side: BorderSide(color: p.line),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: ButtonStyle(
+        side: WidgetStatePropertyAll(BorderSide(color: p.line)),
+        backgroundColor: WidgetStateProperty.resolveWith((st) =>
+            st.contains(WidgetState.selected) ? kRed : const Color(0xFF170609)),
+        foregroundColor: WidgetStateProperty.resolveWith((st) =>
+            st.contains(WidgetState.selected) ? kBeige : kMuted),
+      ),
     ),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }
 
-// ─────────────────────────────── Logo ───────────────────────────────────────
+// ─────────────────────────── Premium primitives ─────────────────────────────
 
-class ErthLogo extends StatelessWidget {
-  final double size;
-  final bool showText;
-
-  /// When set, the whole logo is tappable (used to jump back to Home).
-  final VoidCallback? onTap;
-  const ErthLogo({super.key, this.size = 40, this.showText = true, this.onTap});
+/// Metallic gold CTA (dark text) or terracotta red secondary button.
+class GoldButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final double height;
+  final bool red;
+  final Widget? child;
+  const GoldButton(
+      {super.key,
+      required this.label,
+      this.icon,
+      this.onPressed,
+      this.height = 54,
+      this.red = false,
+      this.child});
 
   @override
   Widget build(BuildContext context) {
-    final p = Pal.of(context);
-    // Typographic mark from the design PDF: red calligraphic "إرث" with a
-    // small letter-spaced "ERTH" beneath it. No arch / pictogram.
-    final content = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('إرث',
-            style: GoogleFonts.arefRuqaa(
-                fontSize: size * 1.15,
-                height: 1.0,
-                fontWeight: FontWeight.w700,
-                color: p.primary)),
-        Text('ERTH',
-            textDirection: TextDirection.ltr,
-            style: TextStyle(
-                fontSize: size * 0.26,
-                height: 1.1,
-                fontWeight: FontWeight.w600,
-                letterSpacing: size * 0.2,
-                color: p.text2)),
-      ],
+    final fg = red ? kBeige : kWine;
+    return Opacity(
+      opacity: onPressed == null ? 0.55 : 1,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          gradient: red ? kRedGradient : kGoldGradient,
+          borderRadius: BorderRadius.circular(16),
+          border: red ? Border.all(color: kGold.withValues(alpha: 0.6)) : null,
+          boxShadow: [
+            BoxShadow(
+                color: (red ? kRed : kGold).withValues(alpha: 0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 6)),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onPressed,
+            child: Center(
+              child: child ??
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 20, color: fg),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(label,
+                        style: GoogleFonts.tajawal(
+                            fontSize: 16, fontWeight: FontWeight.w700, color: fg)),
+                  ]),
+            ),
+          ),
+        ),
+      ),
     );
+  }
+}
+
+/// Dark glass button with a thin antique-gold outline.
+class GlassButton extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final double height;
+  final bool pill;
+  const GlassButton(
+      {super.key,
+      required this.label,
+      this.icon,
+      this.onPressed,
+      this.height = 54,
+      this.pill = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = BorderRadius.circular(pill ? 40 : 16);
+    return Opacity(
+      opacity: onPressed == null ? 0.55 : 1,
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.03),
+          borderRadius: r,
+          border: Border.all(color: kGold.withValues(alpha: 0.4)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: r,
+            onTap: onPressed,
+            child: Center(
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 19, color: kGoldLight),
+                  const SizedBox(width: 8),
+                ],
+                Text(label,
+                    style: GoogleFonts.tajawal(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: kGoldLight)),
+              ]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Outline pill badge. [mono] uses JetBrains Mono for chemical formulas.
+class Pill extends StatelessWidget {
+  final String text;
+  final Color border, textColor;
+  final Color? fill;
+  final bool mono;
+  final IconData? icon;
+  const Pill(this.text,
+      {super.key,
+      this.border = kGold,
+      this.textColor = kGoldLight,
+      this.fill,
+      this.mono = false,
+      this.icon});
+
+  const Pill.unesco(this.text, {super.key})
+      : border = kGold,
+        textColor = kGoldLight,
+        fill = const Color(0xCC1E0709),
+        mono = false,
+        icon = null;
+
+  const Pill.damage(this.text, {super.key})
+      : border = const Color(0xFFD9574A),
+        textColor = const Color(0xFFF08A7E),
+        fill = const Color(0x332A0508),
+        mono = false,
+        icon = null;
+
+  const Pill.formula(this.text, {super.key})
+      : border = const Color(0x99B08D57),
+        textColor = kMono,
+        fill = null,
+        mono = true,
+        icon = null;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: border, width: 1.1),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (icon != null) ...[
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 5),
+        ],
+        Flexible(
+          child: Text(text,
+              style: mono
+                  ? monoStyle(12).copyWith(color: textColor)
+                  : GoogleFonts.tajawal(
+                      fontSize: 12, fontWeight: FontWeight.w600, color: textColor)),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Statistic number in Cinzel with a pale-gold gradient fill.
+class GoldNumber extends StatelessWidget {
+  final String value;
+  final double size;
+  const GoldNumber(this.value, {super.key, this.size = 34});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShaderMask(
+      blendMode: BlendMode.srcIn,
+      shaderCallback: (r) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [kGoldPale, kGoldLight],
+      ).createShader(r),
+      child: Text(value,
+          style: GoogleFonts.cinzel(
+              fontSize: size, fontWeight: FontWeight.w700, height: 1.1)),
+    );
+  }
+}
+
+/// Calligraphic red-gradient text with a warm glow (names, wordmark).
+class Calligraphy extends StatelessWidget {
+  final String text;
+  final double size;
+  const Calligraphy(this.text, {super.key, this.size = 30});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = GoogleFonts.arefRuqaa(
+        fontSize: size, fontWeight: FontWeight.w700, height: 1.15);
+    return Stack(children: [
+      // Warm glow underneath.
+      Text(text,
+          style: style.copyWith(
+              color: Colors.transparent,
+              shadows: [
+                Shadow(
+                    color: const Color(0xFFE53935).withValues(alpha: 0.45),
+                    blurRadius: size * 0.45),
+              ])),
+      ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (r) => const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFE53935), kRed],
+        ).createShader(r),
+        child: Text(text, style: style),
+      ),
+    ]);
+  }
+}
+
+/// Premium dark card surface with a thin antique-gold border.
+BoxDecoration cardDeco({double radius = 22, double borderAlpha = 0.3}) =>
+    BoxDecoration(
+      color: kMaroon.withValues(alpha: 0.85),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: kGold.withValues(alpha: borderAlpha)),
+    );
+
+// ─────────────────────────────── Logo ───────────────────────────────────────
+
+/// Vector version of the golden arch emblem (no box, blends with dark bg).
+class _ArchEmblemPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.045
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kGoldPale, kGoldLight, kGold],
+        stops: [0, 0.45, 1],
+      ).createShader(Offset.zero & size);
+
+    // Entablature (slightly flared slab).
+    canvas.drawPath(
+        Path()
+          ..moveTo(w * 0.06, h * 0.08)
+          ..lineTo(w * 0.94, h * 0.08)
+          ..lineTo(w * 0.88, h * 0.18)
+          ..lineTo(w * 0.12, h * 0.18)
+          ..close(),
+        paint);
+    // Two columns with flared capitals and bases.
+    for (final dir in [1.0, -1.0]) {
+      double x(double v) => dir > 0 ? w * v : w * (1 - v);
+      canvas.drawPath(
+          Path()
+            ..moveTo(x(0.10), h * 0.25)
+            ..quadraticBezierTo(x(0.16), h * 0.24, x(0.16), h * 0.32)
+            ..lineTo(x(0.16), h * 0.84)
+            ..quadraticBezierTo(x(0.16), h * 0.90, x(0.08), h * 0.92)
+            ..lineTo(x(0.30), h * 0.92)
+            ..quadraticBezierTo(x(0.24), h * 0.90, x(0.24), h * 0.84)
+            ..lineTo(x(0.24), h * 0.32)
+            ..quadraticBezierTo(x(0.24), h * 0.26, x(0.30), h * 0.25),
+          paint);
+    }
+    // Double arch.
+    for (final r in [0.22, 0.13]) {
+      canvas.drawPath(
+          Path()
+            ..moveTo(w * (0.5 - r), h * 0.92)
+            ..lineTo(w * (0.5 - r), h * 0.48)
+            ..arcToPoint(Offset(w * (0.5 + r), h * 0.48),
+                radius: Radius.circular(w * r))
+            ..lineTo(w * (0.5 + r), h * 0.92),
+          paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class ArchEmblem extends StatelessWidget {
+  final double size;
+  const ArchEmblem({super.key, this.size = 60});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _ArchEmblemPainter()));
+}
+
+/// Unified brand: gold arch emblem + red calligraphic "إرث" + gold "ERTH"
+/// (+ optional tagline). [horizontal] is the compact AppBar layout.
+class ErthLogo extends StatelessWidget {
+  final double size;
+  final bool horizontal;
+  final bool tagline;
+
+  /// When set, the whole logo is tappable (used to jump back to Home).
+  final VoidCallback? onTap;
+  const ErthLogo(
+      {super.key,
+      this.size = 40,
+      this.horizontal = true,
+      this.tagline = false,
+      this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final ertH = Text('ERTH',
+        textDirection: TextDirection.ltr,
+        style: GoogleFonts.cinzel(
+            fontSize: size * (horizontal ? 0.24 : 0.2),
+            fontWeight: FontWeight.w600,
+            letterSpacing: size * (horizontal ? 0.14 : 0.12),
+            color: kGoldLight));
+    final Widget content = horizontal
+        ? Row(mainAxisSize: MainAxisSize.min, children: [
+            ArchEmblem(size: size * 0.95),
+            SizedBox(width: size * 0.25),
+            Column(mainAxisSize: MainAxisSize.min, children: [
+              Calligraphy('إرث', size: size * 0.78),
+              ertH,
+            ]),
+          ])
+        : Column(mainAxisSize: MainAxisSize.min, children: [
+            ArchEmblem(size: size),
+            SizedBox(height: size * 0.12),
+            Calligraphy('إرث', size: size * 0.8),
+            ertH,
+            if (tagline) ...[
+              SizedBox(height: size * 0.12),
+              Text('منصة التراث الليبي', style: captionStyle(14)),
+            ],
+          ]);
     if (onTap == null) return content;
     return Semantics(
       button: true,
@@ -1238,12 +1668,12 @@ class _ErthAppState extends State<ErthApp> {
         navigatorKey: _navKey,
         title: 'إرث | ERTH',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
+        theme: buildTheme(Brightness.dark),
         darkTheme: buildTheme(Brightness.dark),
-        themeMode: state.dark ? ThemeMode.dark : ThemeMode.light,
+        themeMode: ThemeMode.dark,
         builder: (context, child) => Directionality(
           textDirection: state.ar ? TextDirection.rtl : TextDirection.ltr,
-          child: child!,
+          child: HeritageBackdrop(child: child!),
         ),
         home: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -1313,15 +1743,20 @@ List<Widget> topControls(BuildContext context, AppState s,
 }
 
 List<Widget> _langTheme(AppState s) => [
-      TextButton(
-        onPressed: s.toggleLang,
-        child: Text(s.ar ? 'EN' : 'AR',
-            style: const TextStyle(fontWeight: FontWeight.w800)),
-      ),
-      IconButton(
-        tooltip: s.t('تبديل المظهر', 'Toggle theme'),
-        onPressed: s.toggleDark,
-        icon: Icon(s.dark ? Icons.light_mode : Icons.dark_mode),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            shape: const StadiumBorder(),
+            side: BorderSide(color: kGold.withValues(alpha: 0.5)),
+            minimumSize: const Size(52, 34),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+          ),
+          onPressed: s.toggleLang,
+          child: Text(s.ar ? 'EN' : 'AR',
+              style: GoogleFonts.tajawal(
+                  fontWeight: FontWeight.w700, color: kBeige)),
+        ),
       ),
     ];
 
@@ -1425,7 +1860,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = Pal.of(context);
     String? req(String? v) =>
         (v == null || v.trim().isEmpty) ? s.t('هذا الحقل مطلوب', 'Required') : null;
     return Scaffold(
@@ -1448,25 +1882,21 @@ class _AuthScreenState extends State<AuthScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ErthLogo(
-                        size: 84,
+                        size: 96,
+                        horizontal: false,
+                        tagline: true,
                         onTap: () =>
                             Navigator.of(context).popUntil((r) => r.isFirst),
                       ),
-                      const SizedBox(height: 8),
-                      Text(s.t('منصة التراث الليبي', 'Libyan Heritage Platform'),
-                          style: TextStyle(color: p.text2)),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 28),
                       Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: p.card,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: p.line),
+                        decoration: cardDeco(radius: 24).copyWith(
                           boxShadow: [
                             BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8)),
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 30,
+                                offset: const Offset(0, 12)),
                           ],
                         ),
                         child: Form(
@@ -1586,9 +2016,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     style: const TextStyle(color: Color(0xFFD64535))),
                               ],
                               const SizedBox(height: 18),
-                              SizedBox(
-                                height: 50,
-                                child: FilledButton(
+                              GoldButton(
+                                  label: '',
                                   onPressed: busy ? null : _submit,
                                   child: busy
                                       ? const SizedBox(
@@ -1600,21 +2029,16 @@ class _AuthScreenState extends State<AuthScreen> {
                                           signup
                                               ? s.t('إنشاء حساب', 'Create account')
                                               : s.t('دخول', 'Login'),
-                                          style: const TextStyle(
+                                          style: GoogleFonts.tajawal(
+                                              color: kWine,
                                               fontWeight: FontWeight.w800,
                                               fontSize: 16)),
-                                ),
                               ),
                               const SizedBox(height: 10),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                    foregroundColor: p.accent,
-                                    side: BorderSide(color: p.accent),
-                                    minimumSize: const Size.fromHeight(48)),
+                              GlassButton(
                                 onPressed: () => s.quickDemo(role),
-                                icon: const Icon(Icons.bolt),
-                                label: Text(
-                                    s.t('دخول سريع (تجريبي)', 'Quick demo access')),
+                                icon: Icons.bolt,
+                                label: s.t('دخول سريع (تجريبي)', 'Quick demo access'),
                               ),
                             ],
                           ),
@@ -1641,7 +2065,6 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = state;
-    final p = Pal.of(context);
     final isExpert = s.role == UserRole.expert;
     final pages = isExpert
         ? <Widget>[
@@ -1661,8 +2084,9 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
+        toolbarHeight: 68,
         title: ErthLogo(
-          size: 34,
+          size: 40,
           onTap: () {
             // Close any open sheet/dialog and go back to the Home feed.
             Navigator.of(context).popUntil((r) => r.isFirst);
@@ -1670,23 +2094,8 @@ class AppShell extends StatelessWidget {
           },
         ),
         actions: topControls(context, s, account: true),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: p.line),
-        ),
       ),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          // Glossy heritage beige: soft highlight at the top, deeper tone below.
-          gradient: Theme.of(context).brightness == Brightness.dark
-              ? null
-              : const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFFAF7F2), Color(0xFFF5F1E6), Color(0xFFECE5D8)],
-                  stops: [0.0, 0.5, 1.0],
-                ),
-        ),
+      body: SizedBox.expand(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
@@ -1702,79 +2111,112 @@ class AppShell extends StatelessWidget {
           ),
         ),
       ),
-      floatingActionButton: !isExpert
+      floatingActionButton: (!isExpert && tabIndex == 2)
           ? null
           : Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (isExpert && s.tab == 3) ...[
-            FloatingActionButton.extended(
-              heroTag: null,
-              backgroundColor: p.accent,
-              foregroundColor: Colors.black,
-              onPressed: () => showAddLogSheet(context, s),
-              icon: const Icon(Icons.add),
-              label: Text(s.t('إضافة تقرير ترميم فني', 'Add restoration report'),
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (isExpert && tabIndex == 3) ...[
+                  SizedBox(
+                    width: 250,
+                    child: GoldButton(
+                      height: 50,
+                      label: s.t('إضافة تقرير ترميم فني', 'Add restoration report'),
+                      icon: Icons.add,
+                      onPressed: () => showAddLogSheet(context, s),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _GuidePill(
+                  label: s.t('المرشد الأثري الذكي', 'AI Heritage Guide'),
+                  onTap: () => showChatSheet(context, s),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-          ],
-          FloatingActionButton.extended(
-            heroTag: null,
-            backgroundColor: p.primary,
-            foregroundColor: Colors.white,
-            onPressed: () => showChatSheet(context, s),
-            icon: const Icon(Icons.auto_awesome),
-            label: Text(s.t('المرشد الأثري الذكي', 'AI Heritage Guide'),
-                style: const TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: kGold.withValues(alpha: 0.25)))),
+        child: NavigationBar(
         selectedIndex: tabIndex,
         onDestinationSelected: s.setTab,
         destinations: isExpert
             ? [
                 NavigationDestination(
                     icon: const Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home, color: p.primary),
+                    selectedIcon: const Icon(Icons.home_outlined),
                     label: s.t('الرئيسية', 'Home')),
                 NavigationDestination(
                     icon: const Icon(Icons.account_balance_outlined),
-                    selectedIcon: Icon(Icons.account_balance, color: p.primary),
+                    selectedIcon: const Icon(Icons.account_balance_outlined),
                     label: s.t('المواقع', 'Sites')),
                 NavigationDestination(
-                    icon: const Icon(Icons.document_scanner_outlined),
-                    selectedIcon: Icon(Icons.document_scanner, color: p.primary),
+                    icon: const Icon(Icons.crop_free),
+                    selectedIcon: const Icon(Icons.crop_free),
                     label: s.t('الماسح', 'Scanner')),
                 NavigationDestination(
-                    icon: const Icon(Icons.history_edu_outlined),
-                    selectedIcon: Icon(Icons.history_edu, color: p.primary),
+                    icon: const Icon(Icons.science_outlined),
+                    selectedIcon: const Icon(Icons.science_outlined),
                     label: s.t('سجل الترميم', 'Logs')),
                 NavigationDestination(
                     icon: const Icon(Icons.person_outline),
-                    selectedIcon: Icon(Icons.person, color: p.primary),
+                    selectedIcon: const Icon(Icons.person_outline),
                     label: s.t('الحساب', 'Account')),
               ]
             : [
                 NavigationDestination(
                     icon: const Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home, color: p.primary),
+                    selectedIcon: const Icon(Icons.home_outlined),
                     label: s.t('الرئيسية', 'Home')),
                 NavigationDestination(
                     icon: const Icon(Icons.account_balance_outlined),
-                    selectedIcon: Icon(Icons.account_balance, color: p.primary),
+                    selectedIcon: const Icon(Icons.account_balance_outlined),
                     label: s.t('المواقع', 'Explore')),
                 NavigationDestination(
                     icon: const Icon(Icons.auto_awesome_outlined),
-                    selectedIcon: Icon(Icons.auto_awesome, color: p.primary),
+                    selectedIcon: const Icon(Icons.auto_awesome_outlined),
                     label: s.t('المرشد الذكي', 'AI guide')),
                 NavigationDestination(
                     icon: const Icon(Icons.person_outline),
-                    selectedIcon: Icon(Icons.person, color: p.primary),
+                    selectedIcon: const Icon(Icons.person_outline),
                     label: s.t('الحساب', 'Account')),
               ],
+      ),
+      ),
+    );
+  }
+}
+
+class _GuidePill extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _GuidePill({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return TapScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: kRedGradient,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: kGoldLight.withValues(alpha: 0.85), width: 1.3),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 18,
+                offset: const Offset(0, 8)),
+          ],
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.auto_awesome, size: 19, color: kGoldLight),
+          const SizedBox(width: 10),
+          Text(label,
+              style: GoogleFonts.tajawal(
+                  fontSize: 15, fontWeight: FontWeight.w700, color: kBeige)),
+        ]),
       ),
     );
   }
@@ -1817,24 +2259,11 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: status.color),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: status.color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(status.label(ar),
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-      ]),
-    );
+    final good = status == Preservation.good;
+    return Pill(status.label(ar),
+        border: good ? const Color(0xFF6FAF7A) : const Color(0xFFB8463A),
+        textColor: good ? const Color(0xFFBFE3C4) : const Color(0xFFF2B3A9),
+        fill: const Color(0xD91E0709));
   }
 }
 
@@ -1843,30 +2272,7 @@ class _TouristTag extends StatelessWidget {
   const _TouristTag(this.text);
 
   @override
-  Widget build(BuildContext context) {
-    final p = Pal.of(context);
-    final icon = switch (text) {
-      'موقع يونسكو' => Icons.public,
-      'موصى به لزيارتك' => Icons.thumb_up_alt,
-      'تحفة فنية' => Icons.palette,
-      _ => Icons.landscape,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: p.accent),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 13, color: p.accent),
-        const SizedBox(width: 5),
-        Text(text,
-            style: const TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
-      ]),
-    );
-  }
+  Widget build(BuildContext context) => Pill.unesco(text);
 }
 
 class _Illustration extends StatelessWidget {
@@ -1881,13 +2287,13 @@ class _Illustration extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [p.accent.withValues(alpha: 0.55), p.primary.withValues(alpha: 0.85)],
+          colors: [const Color(0xFF4A1218), p.bg],
         ),
       ),
-      child: Stack(
+      child: const Stack(
         alignment: Alignment.center,
         children: [
-          Icon(site.icon, size: 44, color: Colors.white70),
+          Opacity(opacity: 0.8, child: ArchEmblem(size: 96)),
         ],
       ),
     );
@@ -2029,7 +2435,8 @@ class _SiteCardState extends State<SiteCard> {
             decoration: BoxDecoration(
               color: p.card,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: p.line),
+              border: Border.all(
+                  color: kGold.withValues(alpha: hover ? 0.55 : 0.3)),
               boxShadow: [
                 BoxShadow(
                     color: Colors.black.withValues(alpha: hover ? 0.22 : 0.08),
@@ -2054,13 +2461,7 @@ class _SiteCardState extends State<SiteCard> {
                       PositionedDirectional(
                         top: 10,
                         end: 10,
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                              color: p.accent, shape: BoxShape.circle),
-                          child: const Icon(Icons.public,
-                              size: 16, color: Colors.black),
-                        ),
+                        child: Pill.unesco(ar ? 'اليونسكو' : 'UNESCO'),
                       ),
                   ]),
                 ),
@@ -2096,7 +2497,7 @@ class _SiteCardState extends State<SiteCard> {
                           ),
                           child: Text(
                               ar ? s.category : kCategoryEn[s.category]!,
-                              style: TextStyle(fontSize: 11, color: p.primary)),
+                              style: TextStyle(fontSize: 11, color: kGoldLight)),
                         ),
                       ]),
                     ],
@@ -2171,7 +2572,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
           const SizedBox(height: 16),
           Text(ar ? 'القصة والتراث' : 'Story & heritage',
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+                  fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
           const SizedBox(height: 8),
           Text(s.story(ar), style: const TextStyle(height: 1.8, fontSize: 15)),
           const SizedBox(height: 20),
@@ -2180,7 +2581,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
                   ? (ar ? 'تاريخ الموقع والترميم' : 'Site & restoration history')
                   : (ar ? 'تاريخ الموقع' : 'Site timeline'),
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+                  fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
           const SizedBox(height: 12),
           for (final h in s.history)
             Padding(
@@ -2248,11 +2649,11 @@ class _GalleryStrip extends StatelessWidget {
     final photos = site.photos;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.photo_library_outlined, size: 20, color: p.primary),
+        Icon(Icons.photo_library_outlined, size: 20, color: kGoldLight),
         const SizedBox(width: 8),
         Text(ar ? 'معرض الصور' : 'Photo gallery',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+                fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
         const SizedBox(width: 8),
         Text('${photos.length}', style: TextStyle(color: p.text2)),
       ]),
@@ -2359,11 +2760,11 @@ class _VideoSection extends StatelessWidget {
     final p = Pal.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.smart_display_outlined, size: 20, color: p.primary),
+        Icon(Icons.smart_display_outlined, size: 20, color: kGoldLight),
         const SizedBox(width: 8),
         Text(ar ? 'فيديوهات وثائقية' : 'Documentary videos',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+                fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
       ]),
       const SizedBox(height: 10),
       for (final v in site.videos)
@@ -2433,23 +2834,19 @@ class HomeTab extends StatelessWidget {
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
+            border: Border.all(color: kGold.withValues(alpha: 0.35)),
+            gradient: const LinearGradient(
               begin: AlignmentDirectional.topStart,
               end: AlignmentDirectional.bottomEnd,
-              colors: [p.primary, p.primary.withValues(alpha: 0.75)],
+              colors: [Color(0xFF4A1218), kMaroon],
             ),
           ),
           child: Row(children: [
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(
-                    s.name.isEmpty
-                        ? s.t('مرحبًا بك', 'Welcome')
-                        : s.t('مرحبًا، ${s.name}', 'Welcome, ${s.name}'),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800)),
+                Text(s.t('مرحبًا', 'Welcome'), style: captionStyle(14)),
+                Calligraphy(
+                    s.name.isEmpty ? s.t('زائر', 'Guest') : s.name, size: 34),
                 const SizedBox(height: 6),
                 Text(
                     isExpert
@@ -2457,11 +2854,11 @@ class HomeTab extends StatelessWidget {
                             'Restoration and equipment dashboard')
                         : s.t('رحلة عبر آلاف السنين من الحضارات',
                             'A journey through thousands of years of civilisation'),
-                    style: const TextStyle(color: Colors.white70)),
+                    style: subStyle(14)),
               ]),
             ),
             const SizedBox(width: 12),
-            const Icon(Icons.account_balance, size: 54, color: Color(0xFFE9CD7A)),
+            const ArchEmblem(size: 70),
           ]),
         ),
         const SizedBox(height: 18),
@@ -2521,7 +2918,7 @@ class HomeTab extends StatelessWidget {
             isExpert
                 ? s.t('مواقع تحتاج اهتمامًا', 'Sites needing attention')
                 : s.t('مواقع مميزة', 'Featured sites'),
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            style: titleStyle(21)),
         const SizedBox(height: 12),
         SizedBox(
           height: 300,
@@ -2604,7 +3001,7 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
           Expanded(
             child: Text('استبيان الاهتمامات الأثرية',
                 style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w800, color: p.primary)),
+                    fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
           ),
           if (widget.state.retakingQuiz)
             TextButton(
@@ -2668,7 +3065,7 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
                           child: Text(marks[i],
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: p.primary,
+                                  color: kGoldLight,
                                   fontWeight: FontWeight.w800))),
                       const SizedBox(width: 10),
                       Expanded(
@@ -2760,33 +3157,15 @@ class _Kpi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = Pal.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 6, right: 6),
       child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Row(children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14)),
-            child: Icon(icon, color: color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 28, fontWeight: FontWeight.w800, color: color)),
-              Text(label, style: TextStyle(color: p.text2)),
-            ]),
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: cardDeco(),
+        child: Column(children: [
+          GoldNumber(value),
+          const SizedBox(height: 6),
+          Text(label, textAlign: TextAlign.center, style: captionStyle(13)),
         ]),
       ),
     );
@@ -2997,110 +3376,143 @@ class _ScannerTabState extends State<ScannerTab>
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final isExpert = s.role == UserRole.expert;
+    Widget seg(int v, String label) => Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() {
+              mode = v;
+              mat = null;
+              finding = null;
+            }),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              height: 50,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: mode == v ? kRedGradient : null,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(label,
+                  style: GoogleFonts.tajawal(
+                      fontSize: 15,
+                      fontWeight: mode == v ? FontWeight.w700 : FontWeight.w500,
+                      color: mode == v ? kBeige : kMuted)),
+            ),
+          ),
+        );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 130),
       children: [
-        Text(s.t('ماسح العتاد والآثار', 'Equipment & Artifact Scanner'),
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        Row(children: [
-          Icon(Icons.info_outline, size: 16, color: p.accent),
-          const SizedBox(width: 6),
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Expanded(
-            child: Text(
-                s.t('نسخة تجريبية: النتائج محاكاة ولا تمثل تحليلًا حقيقيًا للصورة.',
-                    'Demo: results are simulated and are not a real image analysis.'),
-                style: TextStyle(color: p.text2, fontSize: 12)),
+            child: Text(s.t('ماسح العتاد والآثار', 'Equipment & Artifact Scanner'),
+                style: titleStyle(24)),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: kGold.withValues(alpha: 0.35)),
+            ),
+            child: Text(s.t('4 من 6', '4 of 6'), style: subStyle(14)),
           ),
         ]),
-        const SizedBox(height: 14),
-        SegmentedButton<int>(
-          showSelectedIcon: false,
-          segments: [
-            ButtonSegment(
-                value: 0,
-                icon: const Icon(Icons.qr_code_scanner, size: 18),
-                label: Text(s.t('فحص العتاد والمواد', 'Equipment & chemicals'))),
-            ButtonSegment(
-                value: 1,
-                icon: const Icon(Icons.biotech, size: 18),
-                label: Text(s.t('تشخيص حالة الأثر', 'Artifact diagnosis'))),
-          ],
-          selected: {mode},
-          onSelectionChanged: (v) => setState(() {
-            mode = v.first;
-            mat = null;
-            finding = null;
-          }),
+        const SizedBox(height: 6),
+        Text(
+            s.t('نسخة تجريبية: النتائج محاكاة ولا تمثل تحليلاً حقيقياً للصورة.',
+                'Demo: results are simulated and are not a real image analysis.'),
+            style: captionStyle(13)),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF170609),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: kGold.withValues(alpha: 0.25)),
+          ),
+          child: Row(children: [
+            seg(0, s.t('فحص العتاد والمواد', 'Equipment & materials')),
+            const SizedBox(width: 6),
+            seg(1, s.t('تشخيص حالة الأثر', 'Artifact diagnosis')),
+          ]),
         ),
         const SizedBox(height: 16),
         AspectRatio(
-          aspectRatio: 4 / 3,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Container(
-              color: Colors.black,
-              child: Stack(fit: StackFit.expand, children: [
-                if (image != null)
-                  Image.memory(image!, fit: BoxFit.cover)
-                else
-                  Center(
-                    child: Icon(
-                        mode == 0 ? Icons.qr_code_2 : Icons.account_balance,
-                        size: 90,
-                        color: Colors.white12),
-                  ),
-                CustomPaint(painter: _BracketPainter(p.accent)),
-                AnimatedBuilder(
-                  animation: _laser,
-                  builder: (_, __) => Align(
-                    alignment: Alignment(0, _laser.value * 1.8 - 0.9),
-                    child: Container(
-                      height: 3,
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      decoration: BoxDecoration(
-                        color: p.primary,
-                        boxShadow: [
-                          BoxShadow(
-                              color: p.primary.withValues(alpha: 0.9),
-                              blurRadius: scanning ? 18 : 8,
-                              spreadRadius: scanning ? 2 : 0),
-                        ],
-                      ),
+          aspectRatio: 1,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0203),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: kGold.withValues(alpha: 0.25)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(fit: StackFit.expand, children: [
+              if (image != null)
+                Image.memory(image!, fit: BoxFit.cover)
+              else
+                Center(
+                  child: Icon(Icons.crop_free,
+                      size: 84, color: kMuted.withValues(alpha: 0.25)),
+                ),
+              CustomPaint(painter: _BracketPainter(kGoldLight)),
+              AnimatedBuilder(
+                animation: _laser,
+                builder: (_, __) => Align(
+                  alignment: Alignment(0, _laser.value * 1.6 - 0.8),
+                  child: Container(
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 34),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      gradient: const LinearGradient(colors: [
+                        Color(0x00DFB85C),
+                        kGoldLight,
+                        kGoldPale,
+                        kGoldLight,
+                        Color(0x00DFB85C),
+                      ]),
+                      boxShadow: [
+                        BoxShadow(
+                            color: kGoldLight.withValues(alpha: 0.8),
+                            blurRadius: scanning ? 18 : 10,
+                            spreadRadius: scanning ? 2 : 0),
+                      ],
                     ),
                   ),
                 ),
-                if (scanning)
-                  Container(
-                    color: Colors.black38,
-                    alignment: Alignment.bottomCenter,
-                    padding: const EdgeInsets.all(14),
-                    child: Text(s.t('جارٍ المسح...', 'Scanning...'),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w700)),
-                  ),
-              ]),
-            ),
+              ),
+              if (scanning)
+                Container(
+                  color: Colors.black38,
+                  alignment: Alignment.bottomCenter,
+                  padding: const EdgeInsets.all(14),
+                  child: Text(s.t('جارٍ المسح...', 'Scanning...'),
+                      style: subStyle(14)),
+                ),
+            ]),
           ),
         ),
-        const SizedBox(height: 14),
-        Wrap(spacing: 10, runSpacing: 10, children: [
-          FilledButton.icon(
-            onPressed: scanning ? null : () => _pick(ImageSource.camera),
-            icon: const Icon(Icons.photo_camera),
-            label: Text(s.t('التقاط صورة', 'Take photo')),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(
+            child: GoldButton(
+              label: s.t('التقاط صورة', 'Take photo'),
+              onPressed: scanning ? null : () => _pick(ImageSource.camera),
+            ),
           ),
-          FilledButton.tonalIcon(
-            onPressed: scanning ? null : () => _pick(ImageSource.gallery),
-            icon: const Icon(Icons.upload_file),
-            label: Text(s.t('رفع صورة', 'Upload photo')),
-          ),
-          OutlinedButton.icon(
-            onPressed: scanning ? null : () => _scan(),
-            icon: const Icon(Icons.radar),
-            label: Text(s.t('مسح مباشر (محاكاة)', 'Live scan (simulated)')),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GlassButton(
+              label: s.t('رفع صورة', 'Upload photo'),
+              onPressed: scanning ? null : () => _pick(ImageSource.gallery),
+            ),
           ),
         ]),
+        const SizedBox(height: 12),
+        GlassButton(
+          pill: true,
+          label: s.t('مسح مباشر (محاكاة)', 'Live scan (simulated)'),
+          onPressed: scanning ? null : () => _scan(),
+        ),
         const SizedBox(height: 18),
         if (mat != null) _equipmentResult(p, isExpert),
         if (finding != null) _diagnosisResult(p, isExpert),
@@ -3110,11 +3522,7 @@ class _ScannerTabState extends State<ScannerTab>
 
   Widget _card(Pal p, List<Widget> children) => Container(
         padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: p.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: p.line),
-        ),
+        decoration: cardDeco(),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
       );
 
@@ -3137,7 +3545,15 @@ class _ScannerTabState extends State<ScannerTab>
       const SizedBox(height: 6),
       Text(s.ar ? m.useAr : m.useEn, style: TextStyle(color: p.text2)),
       const Divider(height: 24),
-      _kv(s.t('الصيغة', 'Formula'), m.formula),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(children: [
+          SizedBox(
+              width: 110,
+              child: Text(s.t('الصيغة', 'Formula'), style: captionStyle(13))),
+          Flexible(child: Pill.formula(m.formula)),
+        ]),
+      ),
       _kv(s.t('رقم الدفعة', 'Batch'), m.batch),
       _kv(s.t('تاريخ الانتهاء', 'Expiry'),
           '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}'),
@@ -3178,7 +3594,7 @@ class _ScannerTabState extends State<ScannerTab>
       ),
       const SizedBox(height: 14),
       Text(s.t('التوصية', 'Recommended treatment'),
-          style: TextStyle(fontWeight: FontWeight.w800, color: p.primary)),
+          style: TextStyle(fontWeight: FontWeight.w800, color: kGoldLight)),
       const SizedBox(height: 4),
       Text(s.ar ? f.recAr : f.recEn, style: const TextStyle(height: 1.7)),
       if (isExpert) ...[
@@ -3215,9 +3631,9 @@ class _BracketPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
+      ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
-    const m = 22.0, l = 34.0;
+    const m = 22.0, l = 44.0;
     final r = Rect.fromLTRB(m, m, size.width - m, size.height - m);
     void corner(Offset o, double dx, double dy) {
       canvas.drawLine(o, o + Offset(dx * l, 0), paint);
@@ -3243,6 +3659,41 @@ class LogsTab extends StatelessWidget {
   String _fmt(DateTime d) =>
       '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 
+  Widget _logCard(RestorationLog l) {
+    // Split "… الضرر: تآكل متوسط." into the action text and a damage pill.
+    var action = l.report.trim();
+    String? damage;
+    final k = action.indexOf('الضرر:');
+    if (k >= 0) {
+      damage = action.substring(k).replaceAll(RegExp(r'[.。]+$'), '').trim();
+      action = action.substring(0, k).trim();
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      decoration: cardDeco(radius: 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(l.siteName, style: titleStyle(19))),
+          if (!l.synced)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 8),
+              child: Icon(Icons.cloud_off, size: 14, color: kMuted),
+            ),
+          Text(_fmt(l.createdAt),
+              textDirection: TextDirection.ltr, style: captionStyle(13)),
+        ]),
+        const SizedBox(height: 10),
+        Text(action, style: subStyle(15).copyWith(height: 1.7)),
+        const SizedBox(height: 14),
+        Wrap(spacing: 8, runSpacing: 10, children: [
+          if (l.materials.trim().isNotEmpty) Pill.formula(l.materials),
+          if (damage != null) Pill.damage(damage),
+        ]),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = state;
@@ -3252,11 +3703,10 @@ class LogsTab extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 160),
         children: [
-          Text(s.t('سجل الترميم', 'Restoration log'),
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+          Text(s.t('سجل الترميم', 'Restoration log'), style: titleStyle(24)),
           const SizedBox(height: 4),
           Text(s.t('${s.logs.length} تقرير فني', '${s.logs.length} technical reports'),
-              style: TextStyle(color: p.text2)),
+              style: captionStyle(13)),
           const SizedBox(height: 16),
           if (s.offline) _OfflineBanner(s),
           if (s.loadingLogs) LinearProgressIndicator(color: p.accent),
@@ -3267,42 +3717,7 @@ class LogsTab extends StatelessWidget {
                   child: Text(s.t('لا توجد تقارير بعد', 'No reports yet'),
                       style: TextStyle(color: p.text2))),
             ),
-          for (final l in s.logs)
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: p.card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: p.line),
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Icon(Icons.history_edu, color: p.accent, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(l.siteName,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800)),
-                  ),
-                  Icon(l.synced ? Icons.cloud_done : Icons.cloud_off,
-                      size: 16,
-                      color: l.synced ? const Color(0xFF4E9A5C) : p.text2),
-                  const SizedBox(width: 6),
-                  Text(_fmt(l.createdAt),
-                      style: TextStyle(color: p.text2, fontSize: 12)),
-                ]),
-                const SizedBox(height: 10),
-                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(Icons.science, size: 16, color: p.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                      child: Text(l.materials, style: TextStyle(color: p.text2))),
-                ]),
-                const SizedBox(height: 8),
-                Text(l.report, style: const TextStyle(height: 1.6)),
-              ]),
-            ),
+          for (final l in s.logs) _logCard(l),
         ],
       ),
     );
@@ -3571,98 +3986,77 @@ class _AccountTabState extends State<AccountTab> {
     final isExpert = s.role == UserRole.expert;
     Widget section(String t) => Padding(
           padding: const EdgeInsets.only(top: 22, bottom: 10),
-          child: Text(t,
-              style: TextStyle(
-                  fontSize: 17, fontWeight: FontWeight.w800, color: p.primary)),
+          child: Text(t, style: titleStyle(17).copyWith(color: kGoldLight)),
+        );
+    Widget field(String label, TextEditingController c,
+            {String? Function(String?)? validator, int lines = 1}) =>
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: captionStyle(13)),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: c,
+              validator: validator,
+              minLines: lines,
+              maxLines: lines == 1 ? 1 : lines + 2,
+              style: subStyle(16).copyWith(color: Colors.white),
+              decoration: InputDecoration(hintText: label),
+            ),
+          ]),
         );
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
       children: [
         Row(children: [
-          CircleAvatar(
-            radius: 34,
-            backgroundColor: p.primary,
-            child: Icon(isExpert ? Icons.verified_user : Icons.hiking,
-                size: 32, color: p.accent),
+          Container(
+            width: 92,
+            height: 92,
+            decoration: BoxDecoration(
+              gradient: kRedGradient,
+              shape: BoxShape.circle,
+              border: Border.all(color: kGoldLight, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                    color: kRed.withValues(alpha: 0.45), blurRadius: 24),
+              ],
+            ),
+            child: Icon(isExpert ? Icons.verified_user_outlined : Icons.person_outline,
+                size: 46, color: Colors.white),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(s.t('إعدادات الحساب', 'Account settings'),
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-              Text(s.email, style: TextStyle(color: p.text2)),
+              Calligraphy(
+                  s.name.isEmpty ? s.t('زائر', 'Guest') : s.name, size: 32),
+              Text(s.email,
+                  textDirection: TextDirection.ltr, style: captionStyle(14)),
             ]),
           ),
         ]),
-        section(s.t('الملف الشخصي', 'Profile')),
+        const SizedBox(height: 18),
         Form(
           key: _formKey,
-          child: Column(children: [
-            TextFormField(
-              controller: _name,
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? s.t('هذا الحقل مطلوب', 'Required')
-                  : null,
-              decoration: InputDecoration(
-                  labelText: s.t('الاسم', 'Name'),
-                  prefixIcon: const Icon(Icons.person_outline)),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _email,
-              validator: (v) => (v == null || !v.contains('@'))
-                  ? s.t('بريد إلكتروني غير صالح', 'Invalid email')
-                  : null,
-              decoration: InputDecoration(
-                  labelText: s.t('البريد الإلكتروني', 'Email'),
-                  prefixIcon: const Icon(Icons.mail_outline)),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _title,
-              decoration: InputDecoration(
-                  labelText: s.t('المسمى / التخصص', 'Title / specialty'),
-                  prefixIcon: const Icon(Icons.work_outline)),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _city,
-              decoration: InputDecoration(
-                  labelText: s.t('المدينة / الهاتف', 'City / phone'),
-                  prefixIcon: const Icon(Icons.location_city)),
-            ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            field(s.t('الاسم', 'Name'), _name,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? s.t('هذا الحقل مطلوب', 'Required')
+                    : null),
+            field(s.t('البريد الإلكتروني', 'Email'), _email,
+                validator: (v) => (v == null || !v.contains('@'))
+                    ? s.t('بريد إلكتروني غير صالح', 'Invalid email')
+                    : null),
+            field(s.t('المسمى / التخصص', 'Title / specialty'), _title),
+            field(s.t('المدينة / الهاتف', 'City / phone'), _city),
             if (isExpert) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _spec,
-                decoration: InputDecoration(
-                    labelText: s.t('التخصص الدقيق', 'Academic specialization'),
-                    prefixIcon: const Icon(Icons.school_outlined)),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _lic,
-                decoration: InputDecoration(
-                    labelText: s.t('رقم العضوية / التصريح', 'Membership / license no.'),
-                    prefixIcon: const Icon(Icons.badge_outlined)),
-              ),
+              field(s.t('التخصص الدقيق', 'Academic specialization'), _spec),
+              field(s.t('رقم العضوية / التصريح', 'Membership / license no.'), _lic),
+              field(s.t('نبذة', 'Bio'), _bio, lines: 3),
             ],
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _bio,
-              minLines: 3,
-              maxLines: 5,
-              decoration: InputDecoration(
-                  labelText: s.t('نبذة', 'Bio'), alignLabelWithHint: true),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: FilledButton.icon(
-                onPressed: _save,
-                icon: const Icon(Icons.save),
-                label: Text(s.t('حفظ التغييرات', 'Save changes')),
-              ),
+            const SizedBox(height: 4),
+            GoldButton(
+              label: s.t('حفظ التغييرات', 'Save changes'),
+              onPressed: _save,
             ),
           ]),
         ),
@@ -3728,12 +4122,6 @@ class _AccountTabState extends State<AccountTab> {
               onChanged: s.setNotifications,
               secondary: const Icon(Icons.notifications_outlined),
               title: Text(s.t('الإشعارات', 'Notifications')),
-            ),
-            SwitchListTile(
-              value: s.dark,
-              onChanged: (_) => s.toggleDark(),
-              secondary: const Icon(Icons.dark_mode_outlined),
-              title: Text(s.t('الوضع الداكن', 'Dark mode')),
             ),
             SwitchListTile(
               value: s.ar,
@@ -4172,12 +4560,11 @@ void _showInstallGuide(BuildContext context, AppState s, {bool installed = false
 }
 
 void showInstallSheet(BuildContext context, AppState s) {
-  const red = Color(0xFF8B261D);
   const bronze = Color(0xFFC59B27);
   const beige = Color(0xFFF5F1E6);
   showModalBottomSheet<void>(
     context: context,
-    backgroundColor: red,
+    backgroundColor: kWine,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
