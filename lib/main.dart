@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,84 +110,6 @@ ThemeData buildTheme(Brightness b) {
 
 // ─────────────────────────────── Logo ───────────────────────────────────────
 
-class _ArchPainter extends CustomPainter {
-  final Color red, bronze;
-  _ArchPainter(this.red, this.bronze);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    final stroke = Paint()
-      ..color = red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.075
-      ..strokeCap = StrokeCap.butt;
-    final fillBronze = Paint()..color = bronze;
-    final fillRed = Paint()..color = red;
-    final rayPaint = Paint()
-      ..color = bronze
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.035
-      ..strokeCap = StrokeCap.round;
-
-    // Libyan desert sun inside the arch opening, clipped by the base line.
-    final sun = Offset(w * 0.5, h * 0.80);
-    canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, w, h * 0.88));
-    canvas.drawCircle(sun, w * 0.13, fillBronze);
-    for (var i = 0; i < 5; i++) {
-      final a = math.pi + (math.pi / 6) + i * (math.pi * 4 / 6 / 4);
-      canvas.drawLine(
-        sun + Offset(math.cos(a), math.sin(a)) * (w * 0.18),
-        sun + Offset(math.cos(a), math.sin(a)) * (w * 0.25),
-        rayPaint,
-      );
-    }
-    canvas.restore();
-
-    // Roman arch.
-    final arch = Path()
-      ..moveTo(w * 0.19, h * 0.90)
-      ..lineTo(w * 0.19, h * 0.50)
-      ..arcTo(
-        Rect.fromCircle(center: Offset(w * 0.5, h * 0.50), radius: w * 0.31),
-        math.pi,
-        math.pi,
-        false,
-      )
-      ..lineTo(w * 0.81, h * 0.90);
-    canvas.drawPath(arch, stroke);
-
-    // Corinthian capitals + keystone + base.
-    for (final x in [0.19, 0.81]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromCenter(
-                center: Offset(w * x, h * 0.49), width: w * 0.16, height: h * 0.07),
-            Radius.circular(w * 0.02)),
-        fillBronze,
-      );
-    }
-    final key = Path()
-      ..moveTo(w * 0.44, h * 0.14)
-      ..lineTo(w * 0.56, h * 0.14)
-      ..lineTo(w * 0.54, h * 0.26)
-      ..lineTo(w * 0.46, h * 0.26)
-      ..close();
-    canvas.drawPath(key, fillBronze);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          Rect.fromLTWH(w * 0.08, h * 0.90, w * 0.84, h * 0.06),
-          Radius.circular(w * 0.02)),
-      fillRed,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _ArchPainter old) =>
-      old.red != red || old.bronze != bronze;
-}
-
 class ErthLogo extends StatelessWidget {
   final double size;
   final bool showText;
@@ -198,63 +121,36 @@ class ErthLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    // The logo art is light cream, so it sits on a Greek-red badge.
-    final icon = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: p.primary,
-        borderRadius: BorderRadius.circular(size * 0.28),
-        border: Border.all(color: p.accent, width: size * 0.04),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Transform.scale(
-        scale: 1.7,
-        child: Image.asset(
-          'assets/logo.png',
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => CustomPaint(
-              painter: _ArchPainter(const Color(0xFFF6F1E7), p.accent)),
-        ),
-      ),
+    // Typographic mark from the design PDF: red calligraphic "إرث" with a
+    // small letter-spaced "ERTH" beneath it. No arch / pictogram.
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('إرث',
+            style: GoogleFonts.arefRuqaa(
+                fontSize: size * 1.15,
+                height: 1.0,
+                fontWeight: FontWeight.w700,
+                color: p.primary)),
+        Text('ERTH',
+            textDirection: TextDirection.ltr,
+            style: TextStyle(
+                fontSize: size * 0.26,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+                letterSpacing: size * 0.2,
+                color: p.text2)),
+      ],
     );
-    final Widget content = showText ? _withText(p, icon) : icon;
     if (onTap == null) return content;
     return Semantics(
       button: true,
       label: 'ERTH - الرئيسية',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(size * 0.3),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(padding: const EdgeInsets.all(2), child: content),
       ),
-    );
-  }
-
-  Widget _withText(Pal p, Widget icon) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      textDirection: TextDirection.ltr,
-      children: [
-        icon,
-        SizedBox(width: size * 0.22),
-        Text('إرث',
-            style: TextStyle(
-                fontSize: size * 0.55,
-                fontWeight: FontWeight.w900,
-                color: p.primary)),
-        Text(' | ',
-            style: TextStyle(
-                fontSize: size * 0.55,
-                fontWeight: FontWeight.w300,
-                color: p.accent)),
-        Text('ERTH',
-            style: TextStyle(
-                fontSize: size * 0.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: size * 0.06,
-                color: p.accent)),
-      ],
     );
   }
 }
@@ -837,7 +733,6 @@ class AppState extends ChangeNotifier {
   // Visitor heritage-interest quiz + itinerary
   String persona = ''; // '', 'A', 'B', 'C', 'D'
   bool retakingQuiz = false;
-  Set<String> saved = {};
 
   SharedPreferences? _prefs;
 
@@ -876,12 +771,6 @@ class AppState extends ChangeNotifier {
   void cancelQuiz() {
     retakingQuiz = false;
     notifyListeners();
-  }
-
-  void toggleSaved(String id) {
-    saved.contains(id) ? saved.remove(id) : saved.add(id);
-    notifyListeners();
-    _save();
   }
 
   List<String> touristTags(HeritageSite x) {
@@ -947,7 +836,6 @@ class AppState extends ChangeNotifier {
       city = p.getString('city') ?? '';
       specialization = p.getString('specialization') ?? '';
       persona = p.getString('quizPersona') ?? '';
-      saved = (p.getStringList('savedSites') ?? <String>[]).toSet();
     } catch (e) {
       debugPrint('[ERTH] prefs load failed: $e');
     }
@@ -969,7 +857,6 @@ class AppState extends ChangeNotifier {
       await p.setString('city', city);
       await p.setString('specialization', specialization);
       await p.setString('quizPersona', persona);
-      await p.setStringList('savedSites', saved.toList());
     } catch (e) {
       debugPrint('[ERTH] prefs save failed: $e');
     }
@@ -1767,7 +1654,6 @@ class AppShell extends StatelessWidget {
         : <Widget>[
             HomeTab(state: s),
             SitesTab(state: s),
-            ItineraryTab(state: s),
             ChatSheet(state: s),
             AccountTab(state: s),
           ];
@@ -1805,7 +1691,11 @@ class AppShell extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 320),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, anim) =>
+                  FadeTransition(opacity: anim, child: child),
               child: KeyedSubtree(
                   key: ValueKey('${s.role.name}$tabIndex'), child: pages[tabIndex]),
             ),
@@ -1873,13 +1763,9 @@ class AppShell extends StatelessWidget {
                     selectedIcon: Icon(Icons.home, color: p.primary),
                     label: s.t('الرئيسية', 'Home')),
                 NavigationDestination(
-                    icon: const Icon(Icons.explore_outlined),
-                    selectedIcon: Icon(Icons.explore, color: p.primary),
-                    label: s.t('استكشف', 'Explore')),
-                NavigationDestination(
-                    icon: const Icon(Icons.bookmark_border),
-                    selectedIcon: Icon(Icons.bookmark, color: p.primary),
-                    label: s.t('مساري', 'My trip')),
+                    icon: const Icon(Icons.account_balance_outlined),
+                    selectedIcon: Icon(Icons.account_balance, color: p.primary),
+                    label: s.t('المواقع', 'Explore')),
                 NavigationDestination(
                     icon: const Icon(Icons.auto_awesome_outlined),
                     selectedIcon: Icon(Icons.auto_awesome, color: p.primary),
@@ -1887,7 +1773,7 @@ class AppShell extends StatelessWidget {
                 NavigationDestination(
                     icon: const Icon(Icons.person_outline),
                     selectedIcon: Icon(Icons.person, color: p.primary),
-                    label: s.t('حسابي', 'My account')),
+                    label: s.t('الحساب', 'Account')),
               ],
       ),
     );
@@ -1983,31 +1869,6 @@ class _TouristTag extends StatelessWidget {
   }
 }
 
-class _SaveButton extends StatelessWidget {
-  final AppState state;
-  final String id;
-  const _SaveButton(this.state, this.id);
-
-  @override
-  Widget build(BuildContext context) {
-    final on = state.saved.contains(id);
-    final p = Pal.of(context);
-    return Material(
-      color: Colors.black.withValues(alpha: 0.6),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => state.toggleSaved(id),
-        child: Padding(
-          padding: const EdgeInsets.all(7),
-          child: Icon(on ? Icons.bookmark : Icons.bookmark_border,
-              size: 20, color: on ? p.accent : Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
 class _Illustration extends StatelessWidget {
   final HeritageSite site;
   const _Illustration(this.site);
@@ -2026,17 +1887,85 @@ class _Illustration extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Opacity(
-            opacity: 0.35,
-            child: CustomPaint(
-                size: const Size(110, 110),
-                painter: _ArchPainter(Colors.white, Colors.white)),
-          ),
-          Positioned(
-            bottom: 10,
-            child: Icon(site.icon, size: 26, color: Colors.white70),
-          ),
+          Icon(site.icon, size: 44, color: Colors.white70),
         ],
+      ),
+    );
+  }
+}
+
+/// Scale-down physics on press, for immediate tactile feedback.
+class TapScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final double scale;
+  const TapScale({super.key, required this.child, this.onTap, this.scale = 0.96});
+
+  @override
+  State<TapScale> createState() => _TapScaleState();
+}
+
+class _TapScaleState extends State<TapScale> {
+  bool down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (_) => setState(() => down = true),
+      onPointerUp: (_) => setState(() => down = false),
+      onPointerCancel: (_) => setState(() => down = false),
+      child: AnimatedScale(
+        scale: down ? widget.scale : 1,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: widget.child),
+      ),
+    );
+  }
+}
+
+/// Fade + slide-up entrance, delayed by [index] for a staggered cascade.
+class StaggerIn extends StatefulWidget {
+  final int index;
+  final Widget child;
+  const StaggerIn({super.key, required this.index, required this.child});
+
+  @override
+  State<StaggerIn> createState() => _StaggerInState();
+}
+
+class _StaggerInState extends State<StaggerIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 520));
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer(Duration(milliseconds: 70 * math.min(widget.index, 10)), () {
+      if (mounted) _c.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final a = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: a,
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.12), end: Offset.zero).animate(a),
+        child: widget.child,
       ),
     );
   }
@@ -2044,10 +1973,17 @@ class _Illustration extends StatelessWidget {
 
 class SiteImage extends StatelessWidget {
   final HeritageSite site;
-  const SiteImage(this.site, {super.key});
+
+  /// Hero scope: must be unique per visible list so tags never collide.
+  final String scope;
+  const SiteImage(this.site, {super.key, this.scope = ''});
 
   @override
   Widget build(BuildContext context) {
+    return Hero(tag: 'site-$scope${site.id}', child: _img());
+  }
+
+  Widget _img() {
     return Image.network(
       site.image,
       fit: BoxFit.cover,
@@ -2064,7 +2000,9 @@ class SiteImage extends StatelessWidget {
 class SiteCard extends StatefulWidget {
   final HeritageSite site;
   final AppState state;
-  const SiteCard({super.key, required this.site, required this.state});
+  final String scope;
+  const SiteCard(
+      {super.key, required this.site, required this.state, this.scope = ''});
 
   @override
   State<SiteCard> createState() => _SiteCardState();
@@ -2084,8 +2022,9 @@ class _SiteCardState extends State<SiteCard> {
       child: AnimatedScale(
         scale: hover ? 1.02 : 1,
         duration: const Duration(milliseconds: 180),
-        child: GestureDetector(
-          onTap: () => showSiteSheet(context, widget.state, s),
+        child: TapScale(
+          scale: 0.97,
+          onTap: () => showSiteSheet(context, widget.state, s, scope: widget.scope),
           child: Container(
             decoration: BoxDecoration(
               color: p.card,
@@ -2104,21 +2043,13 @@ class _SiteCardState extends State<SiteCard> {
               children: [
                 Expanded(
                   child: Stack(fit: StackFit.expand, children: [
-                    SiteImage(s),
+                    SiteImage(s, scope: widget.scope),
                     PositionedDirectional(
                         top: 10,
                         start: 10,
                         child: widget.state.isExpertRole
                             ? _StatusBadge(s.status, ar)
                             : _TouristTag(widget.state.touristTags(s).first)),
-                    if (!widget.state.isExpertRole)
-                      PositionedDirectional(
-                        bottom: 10,
-                        end: 10,
-                        child: ListenableBuilder(
-                            listenable: widget.state,
-                            builder: (_, __) => _SaveButton(widget.state, s.id)),
-                      ),
                     if (s.unesco && widget.state.isExpertRole)
                       PositionedDirectional(
                         top: 10,
@@ -2180,28 +2111,29 @@ class _SiteCardState extends State<SiteCard> {
   }
 }
 
-void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
+void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
+    {String scope = ''}) {
   final p = Pal.of(context);
   final ar = state.ar;
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: p.bg,
-    showDragHandle: true,
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-    builder: (sheetCtx) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.88,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (_, controller) => ListView(
-        controller: controller,
+  Navigator.of(context).push(PageRouteBuilder<void>(
+    transitionDuration: const Duration(milliseconds: 450),
+    reverseTransitionDuration: const Duration(milliseconds: 350),
+    pageBuilder: (sheetCtx, _, __) => Scaffold(
+      backgroundColor: p.bg,
+      appBar: AppBar(
+        backgroundColor: p.bg,
+        title: Text(s.name(ar),
+            style: const TextStyle(fontWeight: FontWeight.w800)),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
-            child: SizedBox(height: 230, child: SiteImage(s)),
+            child: SizedBox(height: 260, child: SiteImage(s, scope: scope)),
           ),
           const SizedBox(height: 16),
           Row(children: [
@@ -2209,19 +2141,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
               child: Text(s.name(ar),
                   style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
             ),
-            if (state.isExpertRole)
-              _StatusBadge(s.status, ar)
-            else
-              ListenableBuilder(
-                listenable: state,
-                builder: (_, __) => IconButton.filledTonal(
-                  tooltip: state.saved.contains(s.id) ? 'إزالة من مساري' : 'أضف إلى مساري',
-                  onPressed: () => state.toggleSaved(s.id),
-                  icon: Icon(state.saved.contains(s.id)
-                      ? Icons.bookmark
-                      : Icons.bookmark_border),
-                ),
-              ),
+            if (state.isExpertRole) _StatusBadge(s.status, ar),
           ]),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -2307,8 +2227,12 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s) {
           ),
         ],
       ),
+        ),
+      ),
     ),
-  );
+    transitionsBuilder: (_, anim, __, child) =>
+        FadeTransition(opacity: anim, child: child),
+  ));
 }
 
 // ───────────────────── Gallery & videos (site sheet) ────────────────────────
@@ -2613,7 +2537,7 @@ class HomeTab extends StatelessWidget {
                   width: 270,
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(end: 14),
-                    child: SiteCard(site: x, state: s),
+                    child: SiteCard(site: x, state: s, scope: 'f'),
                   ),
                 ),
             ],
@@ -2723,16 +2647,21 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
               for (var i = 0; i < 4; i++)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      alignment: AlignmentDirectional.centerStart,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                      side: BorderSide(color: p.line),
+                  child: TapScale(
+                    scale: 0.97,
+                    onTap: () => _pick(letters[i]),
+                    child: Material(
+                      color: p.bg,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                    onPressed: () => _pick(letters[i]),
-                    child: Row(children: [
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(color: p.line)),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => _pick(letters[i]),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
+                          child: Row(children: [
                       CircleAvatar(
                           radius: 13,
                           backgroundColor: p.primary.withValues(alpha: 0.12),
@@ -2746,6 +2675,9 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
                           child: Text(item.$2[i],
                               style: TextStyle(color: p.text, height: 1.4))),
                     ]),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -2793,6 +2725,10 @@ class _Recommendations extends StatelessWidget {
         ]),
       ),
       const SizedBox(height: 16),
+      Text('موصى به لك',
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w700, color: p.accent)),
+      const SizedBox(height: 2),
       Text(per.titleAr,
           style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
       const SizedBox(height: 12),
@@ -2806,73 +2742,13 @@ class _Recommendations extends StatelessWidget {
                 width: 270,
                 child: Padding(
                   padding: const EdgeInsetsDirectional.only(end: 14),
-                  child: SiteCard(site: x, state: state),
+                  child: SiteCard(site: x, state: state, scope: 'r'),
                 ),
               ),
           ],
         ),
       ),
     ]);
-  }
-}
-
-class ItineraryTab extends StatelessWidget {
-  final AppState state;
-  const ItineraryTab({super.key, required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = Pal.of(context);
-    final s = state;
-    final list = kSites.where((x) => s.saved.contains(x.id)).toList();
-    if (list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.bookmark_border, size: 60, color: p.accent),
-            const SizedBox(height: 12),
-            const Text('مسارك فارغ بعد',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Text('اضغط على أيقونة الحفظ في أي موقع لإضافته إلى رحلتك.',
-                textAlign: TextAlign.center, style: TextStyle(color: p.text2)),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-                onPressed: () => s.setTab(1),
-                icon: const Icon(Icons.explore),
-                label: const Text('استكشف المواقع')),
-          ]),
-        ),
-      );
-    }
-    return LayoutBuilder(builder: (context, c) {
-      final cols = c.maxWidth > 900 ? 3 : (c.maxWidth > 560 ? 2 : 1);
-      return Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-          child: Row(children: [
-            Icon(Icons.route, color: p.primary),
-            const SizedBox(width: 8),
-            Text('مساري (${list.length})',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          ]),
-        ),
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: cols,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              mainAxisExtent: 330,
-            ),
-            itemCount: list.length,
-            itemBuilder: (_, i) => SiteCard(site: list[i], state: s),
-          ),
-        ),
-      ]);
-    });
   }
 }
 
@@ -2981,7 +2857,10 @@ class SitesTab extends StatelessWidget {
                     mainAxisExtent: 330,
                   ),
                   itemCount: sites.length,
-                  itemBuilder: (_, i) => SiteCard(site: sites[i], state: s),
+                  itemBuilder: (_, i) => StaggerIn(
+                      key: ValueKey('${s.category}-${sites[i].id}'),
+                      index: i,
+                      child: SiteCard(site: sites[i], state: s, scope: 'e')),
                 );
               }),
       ),
@@ -3974,8 +3853,12 @@ class _ChatSheetState extends State<ChatSheet> {
     msgs.add(_Msg(
         false,
         s.t(
-            'مرحبًا! أنا المرشد الأثري الذكي لـ «إرث». اسألني عن المواقع الأثرية الليبية أو عن كيمياء الترميم والمواد.',
-            'Hello! I am ERTH’s AI heritage guide. Ask me about Libyan archaeological sites or conservation chemistry.')));
+            s.isExpertRole
+                ? 'مرحبًا! أنا المرشد الأثري الذكي لـ «إرث». اسألني عن المواقع الأثرية الليبية أو عن كيمياء الترميم والمواد.'
+                : 'مرحبًا! أنا المرشد الأثري الذكي لـ «إرث». اسألني عن المواقع الأثرية الليبية وتاريخها وكيف تخطط لزيارتها.',
+            s.isExpertRole
+                ? 'Hello! I am ERTH’s AI heritage guide. Ask me about Libyan archaeological sites or conservation chemistry.'
+                : 'Hello! I am ERTH’s AI heritage guide. Ask me about Libyan sites, their history and how to plan your visit.')));
     if (widget.initial != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _send(widget.initial!));
     }
@@ -4306,25 +4189,7 @@ void showInstallSheet(BuildContext context, AppState s) {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6E1C15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: bronze, width: 3),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Transform.scale(
-                  scale: 1.7,
-                  child: Image.asset(
-                    'assets/logo.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => CustomPaint(
-                        painter: _ArchPainter(beige, bronze)),
-                  ),
-                ),
-              ),
+              const ErthLogo(size: 64),
               const SizedBox(height: 16),
               Text(s.t('حمّل تطبيق إرث (ERTH) على جهازك', 'Install ERTH App'),
                   textAlign: TextAlign.center,
