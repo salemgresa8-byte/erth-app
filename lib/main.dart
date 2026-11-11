@@ -37,7 +37,9 @@ const _openRouterModels = [
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey);
+    // Bounded so a slow/unreachable backend can never delay the first frame.
+    await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey)
+        .timeout(const Duration(seconds: 6));
   } catch (e) {
     debugPrint('[ERTH] Supabase init failed, running offline: $e');
   }

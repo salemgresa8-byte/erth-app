@@ -60,15 +60,35 @@
     };
   </script>
 </head>
-<body>
+<body style="margin:0;background:#100304;">
   <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
+    Loading splash: visible immediately while main.dart.js and CanvasKit
+    download (several MB). Without it, slow connections see a blank white
+    page for tens of seconds. Removed on Flutter's first rendered frame.
   -->
+  <style>
+    #erth-splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 35%,#2a0c10 0%,#100304 70%);color:#C59B27;font-family:Tahoma,Arial,sans-serif;z-index:9999;transition:opacity .4s ease}
+    #erth-splash img{width:96px;height:96px;object-fit:contain}
+    #erth-splash .name{font-size:28px;letter-spacing:6px;color:#E6D7C3}
+    #erth-splash .bar{width:140px;height:3px;border-radius:3px;background:rgba(197,155,39,.2);overflow:hidden}
+    #erth-splash .bar i{display:block;width:40%;height:100%;background:#C59B27;animation:erth-load 1.2s ease-in-out infinite}
+    #erth-splash .msg{font-size:13px;color:#A89885}
+    @keyframes erth-load{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
+  </style>
+  <div id="erth-splash" dir="rtl">
+    <img src="icons/Icon-192.png?v=5" alt="">
+    <div class="name">إرث · ERTH</div>
+    <div class="bar"><i></i></div>
+    <div class="msg">جارٍ تحميل منصة التراث الليبي…</div>
+  </div>
+  <script>
+    window.addEventListener("flutter-first-frame", function () {
+      var s = document.getElementById("erth-splash");
+      if (!s) return;
+      s.style.opacity = "0";
+      setTimeout(function () { s.remove(); }, 450);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
