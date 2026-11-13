@@ -27,7 +27,7 @@ class LegalLinks extends StatelessWidget {
           onPressed: () => showLegalSheet(context, s, terms: true),
           child: Text(s.t('شروط الاستخدام', 'Terms of Use'),
               style: captionStyle(12).copyWith(
-                  color: kGoldLight, decoration: TextDecoration.underline)),
+                  color: inkGold, decoration: TextDecoration.underline)),
         ),
         Text(s.t('و', '&'), style: captionStyle(12)),
         TextButton(
@@ -37,7 +37,7 @@ class LegalLinks extends StatelessWidget {
           onPressed: () => showLegalSheet(context, s),
           child: Text(s.t('سياسة الخصوصية', 'Privacy Policy'),
               style: captionStyle(12).copyWith(
-                  color: kGoldLight, decoration: TextDecoration.underline)),
+                  color: inkGold, decoration: TextDecoration.underline)),
         ),
       ],
     );
@@ -49,7 +49,7 @@ void showLegalSheet(BuildContext context, AppState s, {bool terms = false}) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: kObsidian,
+    backgroundColor: Pal.of(context).bg,
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (ctx) => SizedBox(
@@ -60,8 +60,8 @@ void showLegalSheet(BuildContext context, AppState s, {bool terms = false}) {
         child: Column(children: [
           TabBar(
             indicatorColor: kGold,
-            labelColor: kGoldLight,
-            unselectedLabelColor: kMuted,
+            labelColor: inkGold,
+            unselectedLabelColor: inkMuted,
             labelStyle:
                 GoogleFonts.tajawal(fontWeight: FontWeight.w800, fontSize: 15),
             tabs: [
@@ -100,7 +100,7 @@ class _LegalBody extends StatelessWidget {
                 style: captionStyle(12)),
             for (final (h, body) in sections) ...[
               const SizedBox(height: 18),
-              Text(h, style: titleStyle(17).copyWith(color: kGoldLight)),
+              Text(h, style: titleStyle(17).copyWith(color: inkGold)),
               const SizedBox(height: 6),
               Text(body, style: subStyle(14.5).copyWith(height: 1.75)),
             ],

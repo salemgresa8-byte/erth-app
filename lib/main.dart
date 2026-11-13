@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -67,6 +68,18 @@ const kBeige = Color(0xFFE6D7C3);
 const kMuted = Color(0xFFA89885);
 const kMono = Color(0xFFE8C766);
 
+// -- Theme mode -- Set by ErthApp on every rebuild; the getters below switch
+// between the premium dark palette and the "Glossy Beige" light palette.
+bool gLight = false;
+
+Color get inkTitle => gLight ? const Color(0xFF2B0805) : Colors.white;
+Color get inkBody => gLight ? const Color(0xFF59130D) : kBeige;
+Color get inkMuted => gLight ? const Color(0xFF6E5034) : kMuted;
+Color get inkGold => gLight ? const Color(0xFF9C7412) : kGoldLight;
+Color get surfaceColor => gLight ? const Color(0xFFF4ECE1) : kMaroon;
+Color get fieldFill => gLight ? const Color(0xE6FFFFFF) : const Color(0xFF170609);
+Color get heroTop => gLight ? const Color(0xFFFFFFFF) : const Color(0xFF4A1218);
+
 class Pal {
   final Color bg, card, primary, accent, text, text2, line;
   const Pal(this.bg, this.card, this.primary, this.accent, this.text, this.text2,
@@ -74,9 +87,10 @@ class Pal {
 
   static const dark = Pal(kObsidian, kMaroon, kRed, kGold, kBeige, kMuted,
       Color(0x4DC59B27));
-  static const light = dark;
+  static const light = Pal(Color(0xFFFAF7F2), Color(0xFFF4ECE1), kRed,
+      Color(0xFFB08A1E), Color(0xFF59130D), Color(0xFF6E5034), Color(0x66C59B27));
 
-  static Pal of(BuildContext c) => dark;
+  static Pal of(BuildContext c) => gLight ? light : dark;
 }
 
 const kGoldGradient = LinearGradient(
@@ -98,19 +112,24 @@ class HeritageBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [kWine, kObsidian],
+          colors: gLight
+              ? const [Color(0xFFFAF7F2), Color(0xFFF4ECE1), Color(0xFFE6D7C3)]
+              : const [kWine, kObsidian],
         ),
       ),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: RadialGradient(
-            center: Alignment(0, -1.1),
+            center: const Alignment(0, -1.1),
             radius: 1.1,
-            colors: [Color(0x553A0D12), Color(0x00100304)],
+            colors: gLight
+                // Top-centre white-gold sheen.
+                ? const [Color(0xD9FFFFFF), Color(0x00FAF7F2)]
+                : const [Color(0x553A0D12), Color(0x00100304)],
           ),
         ),
         child: child,
@@ -120,107 +139,132 @@ class HeritageBackdrop extends StatelessWidget {
 }
 
 TextStyle titleStyle([double size = 22]) => GoogleFonts.tajawal(
-    fontSize: size, fontWeight: FontWeight.w700, color: Colors.white);
+    fontSize: size, fontWeight: FontWeight.w700, color: inkTitle);
 TextStyle subStyle([double size = 15]) => GoogleFonts.tajawal(
-    fontSize: size, fontWeight: FontWeight.w500, color: kBeige);
+    fontSize: size, fontWeight: FontWeight.w500, color: inkBody);
 TextStyle captionStyle([double size = 12.5]) => GoogleFonts.tajawal(
-    fontSize: size, fontWeight: FontWeight.w400, color: kMuted);
-TextStyle monoStyle([double size = 11.5]) =>
-    GoogleFonts.jetBrainsMono(fontSize: size, color: kMono);
+    fontSize: size, fontWeight: FontWeight.w400, color: inkMuted);
+TextStyle monoStyle([double size = 11.5]) => GoogleFonts.jetBrainsMono(
+    fontSize: size, color: gLight ? const Color(0xFF8B6A12) : kMono);
 
-ThemeData buildTheme(Brightness _) {
-  const p = Pal.dark;
-  final base = ThemeData(brightness: Brightness.dark, useMaterial3: true);
+ThemeData buildTheme() {
+  final light = gLight;
+  final p = light ? Pal.light : Pal.dark;
+  final brightness = light ? Brightness.light : Brightness.dark;
+  final base = ThemeData(brightness: brightness, useMaterial3: true);
   OutlineInputBorder ib(Color c, [double w = 1]) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
       borderSide: BorderSide(color: c, width: w));
   return base.copyWith(
-    colorScheme: ColorScheme.fromSeed(seedColor: kRed, brightness: Brightness.dark)
+    colorScheme: ColorScheme.fromSeed(seedColor: kRed, brightness: brightness)
         .copyWith(
       primary: kRed,
-      onPrimary: kBeige,
+      onPrimary: light ? Colors.white : kBeige,
       secondary: kGold,
       onSecondary: kWine,
       secondaryContainer: kRed,
-      onSecondaryContainer: kBeige,
-      surface: kMaroon,
-      onSurface: kBeige,
+      onSecondaryContainer: light ? Colors.white : kBeige,
+      surface: surfaceColor,
+      onSurface: inkBody,
       outline: p.line,
       outlineVariant: p.line,
     ),
     scaffoldBackgroundColor: Colors.transparent,
-    canvasColor: kMaroon,
+    canvasColor: surfaceColor,
     dividerColor: p.line,
     textTheme: GoogleFonts.tajawalTextTheme(base.textTheme)
-        .apply(bodyColor: kBeige, displayColor: Colors.white),
+        .apply(bodyColor: inkBody, displayColor: inkTitle),
+    iconTheme: IconThemeData(color: inkBody),
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
-      foregroundColor: kBeige,
+      foregroundColor: inkBody,
       elevation: 0,
       scrolledUnderElevation: 0,
       titleTextStyle: titleStyle(18),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: const Color(0xFF140406),
+      // Light: translucent glossy cream (blurred behind by the shells).
+      backgroundColor: light ? const Color(0xD9FAF7F2) : const Color(0xFF140406),
       surfaceTintColor: Colors.transparent,
-      indicatorColor: Colors.transparent,
+      indicatorColor: light ? const Color(0x1FC59B27) : Colors.transparent,
       height: 70,
       iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(
-          color: st.contains(WidgetState.selected) ? kGoldLight : kMuted,
+          color: st.contains(WidgetState.selected)
+              ? (light ? kRed : kGoldLight)
+              : inkMuted,
           size: 24)),
-      labelTextStyle: WidgetStateProperty.resolveWith((st) =>
-          GoogleFonts.tajawal(
-              fontSize: 12,
-              fontWeight: st.contains(WidgetState.selected)
-                  ? FontWeight.w700
-                  : FontWeight.w400,
-              color: st.contains(WidgetState.selected) ? kGoldLight : kMuted)),
+      labelTextStyle: WidgetStateProperty.resolveWith((st) => GoogleFonts.tajawal(
+          fontSize: 12,
+          fontWeight:
+              st.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w400,
+          color: st.contains(WidgetState.selected)
+              ? (light ? const Color(0xFF9C7412) : kGoldLight)
+              : inkMuted)),
     ),
-    cardColor: kMaroon,
+    cardColor: surfaceColor,
     chipTheme: base.chipTheme.copyWith(
-      backgroundColor: kMaroon,
+      backgroundColor: light ? const Color(0xFFFFFBF4) : kMaroon,
       side: BorderSide(color: p.line),
       labelStyle: subStyle(13),
       shape: const StadiumBorder(),
     ),
-    bottomSheetTheme: const BottomSheetThemeData(backgroundColor: kWine),
-    dialogTheme: const DialogThemeData(backgroundColor: kMaroon),
+    bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: light ? const Color(0xFFFAF7F2) : kWine),
+    dialogTheme: DialogThemeData(
+        backgroundColor: light ? const Color(0xFFFAF7F2) : kMaroon),
+    popupMenuTheme:
+        PopupMenuThemeData(color: light ? const Color(0xFFFFFBF4) : kMaroon),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFF170609),
+      fillColor: fieldFill,
       hintStyle: captionStyle(14),
       labelStyle: captionStyle(14),
       contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
       border: ib(p.line),
-      enabledBorder: ib(p.line),
-      focusedBorder: ib(kGoldLight, 1.4),
+      enabledBorder: ib(light ? const Color(0x99C59B27) : p.line),
+      focusedBorder: ib(light ? kGold : kGoldLight, 1.4),
     ),
+    textSelectionTheme: TextSelectionThemeData(
+        cursorColor: light ? const Color(0xFF2B0805) : kGoldLight),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: kRed,
-        foregroundColor: kBeige,
+        foregroundColor: light ? Colors.white : kBeige,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w700),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: kBeige,
-        side: BorderSide(color: p.line),
+        foregroundColor: light ? const Color(0xFF59130D) : kBeige,
+        side: BorderSide(color: light ? const Color(0x99C59B27) : p.line),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.tajawal(fontWeight: FontWeight.w600),
       ),
     ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: light ? kRed : kGoldLight),
+    ),
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: ButtonStyle(
         side: WidgetStatePropertyAll(BorderSide(color: p.line)),
-        backgroundColor: WidgetStateProperty.resolveWith((st) =>
-            st.contains(WidgetState.selected) ? kRed : const Color(0xFF170609)),
+        backgroundColor: WidgetStateProperty.resolveWith(
+            (st) => st.contains(WidgetState.selected) ? kRed : fieldFill),
         foregroundColor: WidgetStateProperty.resolveWith((st) =>
-            st.contains(WidgetState.selected) ? kBeige : kMuted),
+            st.contains(WidgetState.selected)
+                ? (light ? Colors.white : kBeige)
+                : inkMuted),
       ),
     ),
+    switchTheme: light
+        ? SwitchThemeData(
+            thumbColor: WidgetStateProperty.resolveWith((st) =>
+                st.contains(WidgetState.selected) ? Colors.white : kGold),
+            trackColor: WidgetStateProperty.resolveWith((st) =>
+                st.contains(WidgetState.selected) ? kRed : const Color(0x33C59B27)),
+          )
+        : null,
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
   );
 }
@@ -309,7 +353,7 @@ class GlassButton extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: Colors.white.withValues(alpha: gLight ? 0.7 : 0.03),
           borderRadius: r,
           border: Border.all(color: kGold.withValues(alpha: 0.4)),
         ),
@@ -321,14 +365,14 @@ class GlassButton extends StatelessWidget {
             child: Center(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 19, color: kGoldLight),
+                  Icon(icon, size: 19, color: inkGold),
                   const SizedBox(width: 8),
                 ],
                 Text(label,
                     style: GoogleFonts.tajawal(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: kGoldLight)),
+                        color: inkGold)),
               ]),
             ),
           ),
@@ -410,10 +454,10 @@ class GoldNumber extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShaderMask(
       blendMode: BlendMode.srcIn,
-      shaderCallback: (r) => const LinearGradient(
+      shaderCallback: (r) => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [kGoldPale, kGoldLight],
+        colors: gLight ? const [kRed, kGold] : const [kGoldPale, kGoldLight],
       ).createShader(r),
       child: Text(value,
           style: GoogleFonts.cinzel(
@@ -456,12 +500,28 @@ class Calligraphy extends StatelessWidget {
 }
 
 /// Premium dark card surface with a thin antique-gold border.
-BoxDecoration cardDeco({double radius = 22, double borderAlpha = 0.3}) =>
-    BoxDecoration(
-      color: kMaroon.withValues(alpha: 0.85),
-      borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: kGold.withValues(alpha: borderAlpha)),
-    );
+BoxDecoration cardDeco({double radius = 22, double borderAlpha = 0.3}) => gLight
+    // Glossy beige: pearl gradient, gold hairline, warm soft elevation.
+    ? BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFF4ECE1), Color(0xFFEFE6D7)],
+        ),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: const Color(0x66C59B27), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x1859130D), blurRadius: 24, offset: Offset(0, 10)),
+          // Inner-top highlight.
+          BoxShadow(color: Color(0xB3FFFFFF), offset: Offset(0, -1)),
+        ],
+      )
+    : BoxDecoration(
+        color: kMaroon.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: kGold.withValues(alpha: borderAlpha)),
+      );
 
 // ─────────────────────────────── Logo ───────────────────────────────────────
 
@@ -558,7 +618,7 @@ class ErthLogo extends StatelessWidget {
             fontSize: size * (horizontal ? 0.24 : 0.2),
             fontWeight: FontWeight.w600,
             letterSpacing: size * (horizontal ? 0.14 : 0.12),
-            color: kGoldLight));
+            color: inkGold));
     final Widget content = horizontal
         ? Row(mainAxisSize: MainAxisSize.min, children: [
             ArchEmblem(size: size * 0.95),
@@ -1327,6 +1387,8 @@ class RestorationLog {
 
 class AppState extends ChangeNotifier {
   bool dark = false;
+  /// Glossy Beige light theme (persisted as `themeLight`).
+  bool light = false;
   bool ar = true;
   bool notifications = true;
   bool loggedIn = false;
@@ -1471,6 +1533,7 @@ class AppState extends ChangeNotifier {
     try {
       final p = _prefs = await SharedPreferences.getInstance();
       dark = p.getBool('dark') ?? false;
+      light = p.getBool('themeLight') ?? false;
       ar = p.getBool('ar') ?? true;
       notifications = p.getBool('notifications') ?? true;
       loggedIn = p.getBool('loggedIn') ?? false;
@@ -1720,6 +1783,7 @@ class AppState extends ChangeNotifier {
     try {
       final p = _prefs ??= await SharedPreferences.getInstance();
       await p.setBool('dark', dark);
+      await p.setBool('themeLight', light);
       await p.setBool('ar', ar);
       await p.setBool('notifications', notifications);
       await p.setBool('loggedIn', loggedIn);
@@ -1735,6 +1799,12 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ERTH] prefs save failed: $e');
     }
+  }
+
+  void toggleTheme() {
+    light = !light;
+    notifyListeners();
+    _save();
   }
 
   void toggleDark() {
@@ -2138,13 +2208,14 @@ class _ErthAppState extends State<ErthApp> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: state,
-      builder: (context, _) => MaterialApp(
+      builder: (context, _) {
+        gLight = state.light;
+        return MaterialApp(
         navigatorKey: _navKey,
         title: 'إرث | ERTH',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.dark),
-        darkTheme: buildTheme(Brightness.dark),
-        themeMode: ThemeMode.dark,
+        theme: buildTheme(),
+        themeMode: ThemeMode.light,
         builder: (context, child) => Directionality(
           textDirection: state.ar ? TextDirection.rtl : TextDirection.ltr,
           child: HeritageBackdrop(child: child!),
@@ -2155,7 +2226,8 @@ class _ErthAppState extends State<ErthApp> {
               ? AppShell(key: const ValueKey('shell'), state: state)
               : AuthScreen(key: const ValueKey('auth'), state: state),
         ),
-      ),
+      );
+      },
     );
   }
 }
@@ -2229,10 +2301,75 @@ List<Widget> _langTheme(AppState s) => [
           onPressed: s.toggleLang,
           child: Text(s.ar ? 'EN' : 'AR',
               style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.w700, color: kBeige)),
+                  fontWeight: FontWeight.w700, color: inkBody)),
         ),
       ),
+      ThemeToggle(state: s),
     ];
+
+/// Sun (in dark mode) / crescent moon (in light mode) pill.
+class ThemeToggle extends StatelessWidget {
+  final AppState state;
+  final bool expanded;
+  const ThemeToggle({super.key, required this.state, this.expanded = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    final toLight = !s.light;
+    final label = toLight
+        ? s.t('الوضع النهاري', 'Light mode')
+        : s.t('الوضع الليلي', 'Dark mode');
+    final wide = expanded || MediaQuery.of(context).size.width >= 720;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(end: 6),
+      child: Tooltip(
+        message: label,
+        child: TapScale(
+          onTap: s.toggleTheme,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 34,
+            padding: EdgeInsets.symmetric(horizontal: wide ? 12 : 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              gradient: toLight
+                  ? const LinearGradient(colors: [Color(0xFFDFB142), kGold])
+                  : const LinearGradient(colors: [Color(0xFF3A0D12), kWine]),
+              border: Border.all(color: kGold.withValues(alpha: 0.7)),
+              boxShadow: [
+                BoxShadow(
+                    color: kGold.withValues(alpha: 0.25), blurRadius: 10),
+              ],
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (c, a) => RotationTransition(
+                    turns: Tween(begin: 0.6, end: 1.0).animate(a),
+                    child: FadeTransition(opacity: a, child: c)),
+                child: Icon(
+                  toLight ? Icons.wb_sunny_rounded : Icons.dark_mode_rounded,
+                  key: ValueKey(toLight),
+                  size: 18,
+                  color: toLight ? const Color(0xFF2B0805) : kGoldLight,
+                ),
+              ),
+              if (wide) ...[
+                const SizedBox(width: 6),
+                Text(label,
+                    style: GoogleFonts.tajawal(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: toLight ? const Color(0xFF2B0805) : kGoldLight)),
+              ],
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────── Auth ───────────────────────────────────────
 
@@ -2431,8 +2568,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                         color: kGold.withValues(alpha: 0.4)),
                                   ),
                                   child: Row(children: [
-                                    const Icon(Icons.shield_outlined,
-                                        color: kGoldLight, size: 20),
+                                    Icon(Icons.shield_outlined,
+                                        color: inkGold, size: 20),
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
@@ -2669,9 +2806,7 @@ class AppShell extends StatelessWidget {
                 ),
               ],
             ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: kGold.withValues(alpha: 0.25)))),
+      bottomNavigationBar: GlossyNavFrame(
         child: NavigationBar(
         selectedIndex: tabIndex,
         onDestinationSelected: s.setTab,
@@ -2718,6 +2853,29 @@ class AppShell extends StatelessWidget {
               ],
       ),
       ),
+    );
+  }
+}
+
+/// Bottom-nav frame: in light mode a frosted glossy-cream bar with a gold rule.
+class GlossyNavFrame extends StatelessWidget {
+  final Widget child;
+  const GlossyNavFrame({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final bar = Container(
+      decoration: BoxDecoration(
+          border: Border(
+              top: BorderSide(
+                  color: gLight ? kGold : kGold.withValues(alpha: 0.25),
+                  width: gLight ? 1.2 : 1))),
+      child: child,
+    );
+    if (!gLight) return bar;
+    return ClipRect(
+      child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: bar),
     );
   }
 }
@@ -2868,7 +3026,7 @@ class _Illustration extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [const Color(0xFF4A1218), p.bg],
+          colors: [heroTop, p.bg],
         ),
       ),
       child: const Stack(
@@ -3078,7 +3236,7 @@ class _SiteCardState extends State<SiteCard> {
                           ),
                           child: Text(
                               ar ? s.category : kCategoryEn[s.category]!,
-                              style: TextStyle(fontSize: 11, color: kGoldLight)),
+                              style: TextStyle(fontSize: 11, color: inkGold)),
                         ),
                       ]),
                     ],
@@ -3153,7 +3311,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
           const SizedBox(height: 16),
           Text(ar ? 'القصة والتراث' : 'Story & heritage',
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
+                  fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
           const SizedBox(height: 8),
           Text(s.story(ar), style: const TextStyle(height: 1.8, fontSize: 15)),
           const SizedBox(height: 20),
@@ -3162,7 +3320,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
                   ? (ar ? 'تاريخ الموقع والترميم' : 'Site & restoration history')
                   : (ar ? 'تاريخ الموقع' : 'Site timeline'),
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
+                  fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
           const SizedBox(height: 12),
           for (final h in s.history)
             Padding(
@@ -3230,11 +3388,11 @@ class _GalleryStrip extends StatelessWidget {
     final photos = site.photos;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.photo_library_outlined, size: 20, color: kGoldLight),
+        Icon(Icons.photo_library_outlined, size: 20, color: inkGold),
         const SizedBox(width: 8),
         Text(ar ? 'معرض الصور' : 'Photo gallery',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
+                fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
         const SizedBox(width: 8),
         Text('${photos.length}', style: TextStyle(color: p.text2)),
       ]),
@@ -3341,11 +3499,11 @@ class _VideoSection extends StatelessWidget {
     final p = Pal.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.smart_display_outlined, size: 20, color: kGoldLight),
+        Icon(Icons.smart_display_outlined, size: 20, color: inkGold),
         const SizedBox(width: 8),
         Text(ar ? 'فيديوهات وثائقية' : 'Documentary videos',
             style: TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
+                fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
       ]),
       const SizedBox(height: 10),
       for (final v in site.videos)
@@ -3416,10 +3574,10 @@ class HomeTab extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: kGold.withValues(alpha: 0.35)),
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: AlignmentDirectional.topStart,
               end: AlignmentDirectional.bottomEnd,
-              colors: [Color(0xFF4A1218), kMaroon],
+              colors: [heroTop, surfaceColor],
             ),
           ),
           child: Row(children: [
@@ -3595,7 +3753,7 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
           Expanded(
             child: Text('استبيان الاهتمامات الأثرية',
                 style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w800, color: kGoldLight)),
+                    fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
           ),
           if (widget.state.retakingQuiz)
             TextButton(
@@ -3659,7 +3817,7 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
                           child: Text(marks[i],
                               style: TextStyle(
                                   fontSize: 12,
-                                  color: kGoldLight,
+                                  color: inkGold,
                                   fontWeight: FontWeight.w800))),
                       const SizedBox(width: 10),
                       Expanded(
@@ -3990,7 +4148,7 @@ class _ScannerTabState extends State<ScannerTab>
                   style: GoogleFonts.tajawal(
                       fontSize: 15,
                       fontWeight: mode == v ? FontWeight.w700 : FontWeight.w500,
-                      color: mode == v ? kBeige : kMuted)),
+                      color: mode == v ? inkBody : inkMuted)),
             ),
           ),
         );
@@ -4020,7 +4178,7 @@ class _ScannerTabState extends State<ScannerTab>
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: const Color(0xFF170609),
+            color: fieldFill,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: kGold.withValues(alpha: 0.25)),
           ),
@@ -4189,7 +4347,7 @@ class _ScannerTabState extends State<ScannerTab>
       ),
       const SizedBox(height: 14),
       Text(s.t('التوصية', 'Recommended treatment'),
-          style: TextStyle(fontWeight: FontWeight.w800, color: kGoldLight)),
+          style: TextStyle(fontWeight: FontWeight.w800, color: inkGold)),
       const SizedBox(height: 4),
       Text(s.ar ? f.recAr : f.recEn, style: const TextStyle(height: 1.7)),
       if (isExpert) ...[
@@ -4267,7 +4425,7 @@ class LogsTab extends StatelessWidget {
           if (!l.synced)
             Padding(
               padding: const EdgeInsetsDirectional.only(end: 8),
-              child: Icon(Icons.cloud_off, size: 14, color: kMuted),
+              child: Icon(Icons.cloud_off, size: 14, color: inkMuted),
             ),
           Text(_fmt(l.createdAt),
               textDirection: TextDirection.ltr, style: captionStyle(13)),
@@ -4577,7 +4735,7 @@ class _AccountTabState extends State<AccountTab> {
     final isExpert = s.role == UserRole.expert;
     Widget section(String t) => Padding(
           padding: const EdgeInsets.only(top: 22, bottom: 10),
-          child: Text(t, style: titleStyle(17).copyWith(color: kGoldLight)),
+          child: Text(t, style: titleStyle(17).copyWith(color: inkGold)),
         );
     Widget field(String label, TextEditingController c,
             {String? Function(String?)? validator, int lines = 1}) =>
@@ -4591,7 +4749,7 @@ class _AccountTabState extends State<AccountTab> {
               validator: validator,
               minLines: lines,
               maxLines: lines == 1 ? 1 : lines + 2,
-              style: subStyle(16).copyWith(color: Colors.white),
+              style: subStyle(16).copyWith(color: inkTitle),
               decoration: InputDecoration(hintText: label),
             ),
           ]),
@@ -4715,6 +4873,14 @@ class _AccountTabState extends State<AccountTab> {
               onChanged: s.setNotifications,
               secondary: const Icon(Icons.notifications_outlined),
               title: Text(s.t('الإشعارات', 'Notifications')),
+            ),
+            SwitchListTile(
+              value: s.light,
+              onChanged: (_) => s.toggleTheme(),
+              secondary: Icon(
+                  s.light ? Icons.dark_mode_rounded : Icons.wb_sunny_rounded),
+              title: Text(s.t('الوضع النهاري (البيج اللامع)',
+                  'Light mode (glossy beige)')),
             ),
             SwitchListTile(
               value: s.ar,

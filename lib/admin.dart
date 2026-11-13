@@ -58,10 +58,7 @@ class AdminShell extends StatelessWidget {
               ),
             )
           : null,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-            border:
-                Border(top: BorderSide(color: kGold.withValues(alpha: 0.25)))),
+      bottomNavigationBar: GlossyNavFrame(
         child: NavigationBar(
           selectedIndex: tabIndex,
           onDestinationSelected: s.setTab,
@@ -102,7 +99,7 @@ Widget _adminHeader(String title, String sub) => Padding(
 
 Widget _adminSection(String t) => Padding(
       padding: const EdgeInsets.only(top: 22, bottom: 10),
-      child: Text(t, style: titleStyle(17).copyWith(color: kGoldLight)),
+      child: Text(t, style: titleStyle(17).copyWith(color: inkGold)),
     );
 
 // ── 1. Overview & analytics ──────────────────────────────────────────────────
@@ -211,7 +208,7 @@ class AdminOverviewTab extends StatelessWidget {
                             sites.where((x) => x.status == st).length / total,
                         minHeight: 10,
                         color: st.color,
-                        backgroundColor: Colors.white.withValues(alpha: 0.06),
+                        backgroundColor: (gLight ? kGold : Colors.white).withValues(alpha: 0.08),
                       ),
                     ),
                   ),
@@ -367,13 +364,13 @@ class _AdminSitesTabState extends State<AdminSitesTab> {
                 if (x.unesco) Pill.unesco(s.t('يونسكو', 'UNESCO')),
                 if (hidden)
                   Pill(s.t('مخفي', 'Hidden'),
-                      border: kMuted,
-                      textColor: kMuted,
+                      border: inkMuted,
+                      textColor: inkMuted,
                       fill: Colors.transparent),
                 if (x.custom)
                   Pill(s.t('جديد', 'New'),
                       border: kGold,
-                      textColor: kGoldLight,
+                      textColor: inkGold,
                       fill: Colors.transparent),
               ]),
             ]),
@@ -809,10 +806,10 @@ class _SiteEditorState extends State<SiteEditor> {
   }
 
   Widget _previewError() => Container(
-        color: kMaroon,
+        color: surfaceColor,
         alignment: Alignment.center,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.broken_image_outlined, color: kMuted),
+          Icon(Icons.broken_image_outlined, color: inkMuted),
           Text(s.t('تعذر تحميل المعاينة', 'Preview unavailable'),
               style: captionStyle(12)),
         ]),
@@ -1162,7 +1159,7 @@ class _AdminContentTabState extends State<AdminContentTab> {
                 leading: CircleAvatar(
                     backgroundColor: kGold.withValues(alpha: 0.15),
                     child: Text('${i + 1}',
-                        style: const TextStyle(color: kGoldLight))),
+                        style: TextStyle(color: inkGold))),
                 title: Text(s.quiz[i].$1,
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(s.quiz[i].$2.join(' • '),
