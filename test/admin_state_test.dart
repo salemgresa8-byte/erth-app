@@ -15,9 +15,10 @@ void main() {
 
   test('admin login requires correct credentials', () async {
     final s = await fresh();
-    expect(s.loginAdmin('admin@erth.ly', 'wrong'), isNotNull);
+    expect(s.loginAdmin('admin@erth.ly', 'admin123'), isNotNull);
+    expect(s.loginAdmin(kAdminEmail, 'wrong'), isNotNull);
     expect(s.isAdmin, isFalse);
-    expect(s.loginAdmin(kAdminEmail, kAdminPasscode), isNull);
+    expect(s.loginAdmin(' SalemGresa8@gmail.com ', 'salem2006'), isNull);
     expect(s.isAdmin, isTrue);
   });
 

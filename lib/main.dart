@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -594,11 +595,17 @@ class ErthLogo extends StatelessWidget {
 
 enum UserRole { tourist, expert, admin }
 
-// Demo administrator credentials for the evaluation committee. This is a
-// client-side check only — production admin access must be enforced server
-// side (e.g. a Supabase `role = 'admin'` claim checked by RLS policies).
-const kAdminEmail = 'admin@erth.ly';
-const kAdminPasscode = 'ErthAdmin2026';
+// System administrator credentials. Checked on-device (works offline, no
+// network round-trip). Only the SHA-256 of the password ships in the public
+// web bundle. Production admin access should also be enforced server side
+// (e.g. a Supabase `role = 'admin'` claim checked by RLS policies).
+const kAdminEmail = 'salemgresa8@gmail.com';
+const _kAdminPassSha256 =
+    '9e805bf928520f8f4ebefad328277980bf59f31504e794a21ebd8c64f3036197';
+
+bool isAdminCredentials(String mail, String password) =>
+    mail.trim().toLowerCase() == kAdminEmail &&
+    sha256.convert(utf8.encode(password)).toString() == _kAdminPassSha256;
 
 enum Preservation { good, needsCare, underTreatment, critical }
 
@@ -1764,13 +1771,18 @@ class AppState extends ChangeNotifier {
   // ── auth ──
   /// Admin sign-in (demo, client-side credential check — see [kAdminEmail]).
   String? loginAdmin(String mail, String password) {
-    if (mail.trim().toLowerCase() != kAdminEmail || password != kAdminPasscode) {
+    if (!isAdminCredentials(mail, password)) {
       return t('بيانات مدير النظام غير صحيحة', 'Invalid administrator credentials');
     }
-    _enter(mail: kAdminEmail, fullName: t('مدير النظام', 'System admin'),
-        r: UserRole.admin, lic: '');
+    _enterAdmin();
     return null;
   }
+
+  void _enterAdmin() => _enter(
+      mail: kAdminEmail,
+      fullName: t('مدير النظام', 'System admin'),
+      r: UserRole.admin,
+      lic: '');
 
   Future<String?> login(String mail, String password) async {
     final c = _client;
@@ -1854,7 +1866,7 @@ class AppState extends ChangeNotifier {
 
   void quickDemo(UserRole r) {
     if (r == UserRole.admin) {
-      loginAdmin(kAdminEmail, kAdminPasscode);
+      _enterAdmin();
       return;
     }
     _enter(
@@ -2269,6 +2281,12 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submit() async {
+    // Administrator credentials sign in immediately from any role/tab,
+    // fully offline (no Supabase round-trip, so no network timeouts).
+    if (isAdminCredentials(_email.text, _pass.text)) {
+      s.loginAdmin(_email.text, _pass.text);
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       busy = true;
@@ -2418,8 +2436,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
-                                        s.t('دخول المدير يتطلب البريد ($kAdminEmail) ورمز المرور. للجنة التقييم: استخدم زر الدخول السريع بالأسفل.',
-                                            'Admin access requires $kAdminEmail and the passcode. Evaluation committee: use the quick login button below.'),
+                                        s.t('أدخل بريد مدير النظام وكلمة المرور، أو استخدم زر الدخول السريع بالأسفل.',
+                                            'Enter the administrator email and password, or use the quick login button below.'),
                                         style: captionStyle(12.5),
                                       ),
                                     ),
@@ -2543,6 +2561,16 @@ class _AuthScreenState extends State<AuthScreen> {
                                         'Demo admin quick login')
                                     : s.t('دخول سريع (تجريبي)', 'Quick demo access'),
                               ),
+                              if (role != UserRole.admin) ...[
+                                const SizedBox(height: 10),
+                                // One-tap admin entry for the evaluation committee.
+                                GlassButton(
+                                  onPressed: () => s.quickDemo(UserRole.admin),
+                                  icon: Icons.admin_panel_settings,
+                                  label: s.t('دخول سريع: مدير النظام',
+                                      'Quick login: System admin'),
+                                ),
+                              ],
                               const SizedBox(height: 12),
                               LegalLinks(state: s),
                             ],
