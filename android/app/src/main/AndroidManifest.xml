@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Artifact Scanner (ماسح العتاد والآثار): camera is requested only when the
+         user taps "capture". Photos are picked via the system photo picker, which
+         needs no storage permission on Android 13+. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="erth_project"
         android:name="${applicationName}"

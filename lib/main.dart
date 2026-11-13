@@ -13,6 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'pwa/pwa.dart';
 
+part 'admin.dart';
+part 'legal.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ERTH (إرث) — Libyan heritage platform. Single file, no router.
 // Every network call is wrapped: the UI always works with local data.
@@ -38,7 +41,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     // Bounded so a slow/unreachable backend can never delay the first frame.
-    await Supabase.initialize(url: _supabaseUrl, anonKey: _supabaseAnonKey)
+    await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseAnonKey)
         .timeout(const Duration(seconds: 6));
   } catch (e) {
     debugPrint('[ERTH] Supabase init failed, running offline: $e');
@@ -589,7 +592,13 @@ class ErthLogo extends StatelessWidget {
 
 // ─────────────────────────────── Models ─────────────────────────────────────
 
-enum UserRole { tourist, expert }
+enum UserRole { tourist, expert, admin }
+
+// Demo administrator credentials for the evaluation committee. This is a
+// client-side check only — production admin access must be enforced server
+// side (e.g. a Supabase `role = 'admin'` claim checked by RLS policies).
+const kAdminEmail = 'admin@erth.ly';
+const kAdminPasscode = 'ErthAdmin2026';
 
 enum Preservation { good, needsCare, underTreatment, critical }
 
@@ -619,8 +628,14 @@ class HeritageSite {
   final IconData icon;
   final String storyAr, storyEn;
   final List<(String, String, String)> history; // year, ar, en
+  /// Extra photos; null falls back to the built-in [kGallery] entry.
+  final List<String>? gallery;
+  /// True for sites created in the admin dashboard (not in [kSites]).
+  final bool custom;
 
   const HeritageSite({
+    this.gallery,
+    this.custom = false,
     required this.id,
     required this.nameAr,
     required this.nameEn,
@@ -646,8 +661,105 @@ class HeritageSite {
   String story(bool ar) => ar ? storyAr : storyEn;
 
   /// Cover image first, then any extra gallery photos (deduplicated).
-  List<String> get photos =>
-      <String>{image, ...?kGallery[id]}.toList(growable: false);
+  List<String> get photos => <String>{
+        if (image.isNotEmpty) image,
+        ...?(gallery ?? kGallery[id]),
+      }.toList(growable: false);
+
+  List<String> get extraPhotos => gallery ?? kGallery[id] ?? const [];
+
+  HeritageSite copyWith({
+    String? nameAr,
+    String? nameEn,
+    String? regionAr,
+    String? regionEn,
+    String? category,
+    String? eraAr,
+    String? eraEn,
+    bool? unesco,
+    double? lat,
+    double? lon,
+    Preservation? status,
+    String? image,
+    String? storyAr,
+    String? storyEn,
+    List<String>? gallery,
+  }) =>
+      HeritageSite(
+        id: id,
+        nameAr: nameAr ?? this.nameAr,
+        nameEn: nameEn ?? this.nameEn,
+        regionAr: regionAr ?? this.regionAr,
+        regionEn: regionEn ?? this.regionEn,
+        category: category ?? this.category,
+        eraAr: eraAr ?? this.eraAr,
+        eraEn: eraEn ?? this.eraEn,
+        unesco: unesco ?? this.unesco,
+        lat: lat ?? this.lat,
+        lon: lon ?? this.lon,
+        status: status ?? this.status,
+        image: image ?? this.image,
+        icon: category != null ? categoryIcon(category) : icon,
+        storyAr: storyAr ?? this.storyAr,
+        storyEn: storyEn ?? this.storyEn,
+        history: history,
+        gallery: gallery ?? this.gallery,
+        custom: custom,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'nameAr': nameAr,
+        'nameEn': nameEn,
+        'regionAr': regionAr,
+        'regionEn': regionEn,
+        'category': category,
+        'eraAr': eraAr,
+        'eraEn': eraEn,
+        'unesco': unesco,
+        'lat': lat,
+        'lon': lon,
+        'status': status.name,
+        'image': image,
+        'storyAr': storyAr,
+        'storyEn': storyEn,
+        'history': [
+          for (final h in history) [h.$1, h.$2, h.$3]
+        ],
+        'gallery': gallery,
+        'custom': custom,
+      };
+
+  /// [base] supplies the icon for built-in sites (icons can't be serialised
+  /// without breaking release-mode icon tree shaking).
+  static HeritageSite fromJson(Map<String, dynamic> j, {HeritageSite? base}) {
+    final cat = '${j['category'] ?? base?.category ?? 'آثار رومانية'}';
+    return HeritageSite(
+      id: '${j['id']}',
+      nameAr: '${j['nameAr'] ?? ''}',
+      nameEn: '${j['nameEn'] ?? ''}',
+      regionAr: '${j['regionAr'] ?? ''}',
+      regionEn: '${j['regionEn'] ?? ''}',
+      category: cat,
+      eraAr: '${j['eraAr'] ?? ''}',
+      eraEn: '${j['eraEn'] ?? ''}',
+      unesco: j['unesco'] == true,
+      lat: (j['lat'] as num?)?.toDouble() ?? 0,
+      lon: (j['lon'] as num?)?.toDouble() ?? 0,
+      status: Preservation.values.firstWhere((p) => p.name == j['status'],
+          orElse: () => Preservation.good),
+      image: '${j['image'] ?? ''}',
+      icon: base != null && base.category == cat ? base.icon : categoryIcon(cat),
+      storyAr: '${j['storyAr'] ?? ''}',
+      storyEn: '${j['storyEn'] ?? ''}',
+      history: [
+        for (final h in (j['history'] as List? ?? const []))
+          if (h is List && h.length == 3) ('${h[0]}', '${h[1]}', '${h[2]}')
+      ],
+      gallery: (j['gallery'] as List?)?.map((e) => '$e').toList(),
+      custom: j['custom'] == true,
+    );
+  }
 
   List<(String, String, String)> get videos =>
       kVideos[id] ??
@@ -673,8 +785,24 @@ const kCategoryEn = {
   'شخصيات تاريخية': 'Historical figures',
   'تحف أثرية': 'Archaeological treasures',
   'مخطوطات نادرة': 'Rare manuscripts',
+  'ما قبل التاريخ': 'Prehistoric',
 };
 final kCategories = kCategoryEn.keys.toList();
+
+IconData categoryIcon(String category) => switch (category) {
+      'آثار رومانية' => Icons.account_balance,
+      'آثار إغريقية' => Icons.temple_hindu,
+      'نقوش صخرية' => Icons.landscape,
+      'مدن قديمة' => Icons.location_city,
+      'قلاع إسلامية' => Icons.fort,
+      'واحات طبيعية' => Icons.water,
+      'تحف فنية' => Icons.palette,
+      'شخصيات تاريخية' => Icons.person,
+      'تحف أثرية' => Icons.diamond_outlined,
+      'مخطوطات نادرة' => Icons.menu_book,
+      'ما قبل التاريخ' => Icons.terrain,
+      _ => Icons.museum_outlined,
+    };
 
 class Persona {
   final String nameAr, titleAr;
@@ -894,7 +1022,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 1–2 م', eraEn: '1st–2nd c. AD',
     unesco: false, lat: 32.5500, lon: 14.4500,
     status: Preservation.underTreatment, icon: Icons.grid_view,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
     storyAr: 'فيلا رومانية ساحلية فاخرة اشتهرت بفسيفسائها الأرضية الملونة التي تصور مشاهد من الحياة اليومية والأساطير.',
     storyEn: 'A luxurious Roman coastal villa famed for its colourful floor mosaics of daily life and mythology.',
     history: [
@@ -972,7 +1100,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 1–2 م', eraEn: '1st–2nd c. AD',
     unesco: false, lat: 32.5500, lon: 14.4500,
     status: Preservation.underTreatment, icon: Icons.grid_view,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/1/12/Musicians_from_the_Zliten_mosaic_2.JPG',
     storyAr: 'فسيفساء رومانية نادرة تصور مشاهد الصيد ومصارعة الوحوش والمصارعين والموسيقيين، وهي من أبرز روائع الفن الروماني في شمال أفريقيا.',
     storyEn: 'A rare Roman mosaic depicting hunting, beast fights, gladiators and musicians — one of the finest works of Roman art in North Africa.',
     history: [
@@ -1004,7 +1132,7 @@ const kSites = <HeritageSite>[
     eraAr: 'القرن 2 م (نسخ رومانية عن أصول هلنستية)', eraEn: '2nd c. AD (Roman copies of Hellenistic originals)',
     unesco: true, lat: 32.8230, lon: 21.8600,
     status: Preservation.needsCare, icon: Icons.temple_hindu,
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Apollo_Kitharoidos_BM_1380.jpg/960px-Apollo_Kitharoidos_BM_1380.jpg',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
     storyAr: 'من معبد أبولو في قورينا خرج تمثال أبولون حامل القيثارة، والمدينة كانت مركزًا لعبادة أبولو وكاهناتها. بعض هذه التماثيل محفوظ اليوم في متاحف عالمية.',
     storyEn: 'From the Temple of Apollo at Cyrene came the statue of Apollo holding a kithara; the city was a major centre of Apollo’s cult and priestesses. Some of these statues are now in museums abroad.',
     history: [
@@ -1033,7 +1161,7 @@ const kGallery = <String, List<String>>{
   'sabratha': [
     'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Theatre_of_Sabratha%2C_Libya.jpg/960px-Theatre_of_Sabratha%2C_Libya.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg/960px-Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Via_del_Teatro%2C_Sabratha_%2819416%29.jpg/960px-Via_del_Teatro%2C_Sabratha_%2819416%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/0/09/Roman_ruins_by_the_sea_in_Sabratha%2C_Libya.jpg',
   ],
   'ghadames': [
     'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Ghadames%2C_2006.jpg/960px-Ghadames%2C_2006.jpg',
@@ -1045,21 +1173,16 @@ const kGallery = <String, List<String>>{
   'redcastle': [
     'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg/960px-Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Red_Castle_Museum.jpg/960px-Red_Castle_Museum.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Roman_mosaic%2C_Tripoli_Museum%2C_Libya.jpg/960px-Roman_mosaic%2C_Tripoli_Museum%2C_Libya.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Three_Graces%2C_Tripoli_Museum%2C_Libya_%283042179766%29.jpg/960px-Three_Graces%2C_Tripoli_Museum%2C_Libya_%283042179766%29.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/The_Red_Castle.jpg/960px-The_Red_Castle.jpg',
   ],
   'silin': [
-    'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
   ],
   'zliten': [
-    'https://upload.wikimedia.org/wikipedia/commons/8/8d/Bestiarii.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/f/f3/Gladiators_from_the_Zliten_mosaic_2.JPG',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/5/51/Beasts_and_criminals_from_the_Zliten_mosaic.jpg',
   ],
   'medusa': [
     'https://upload.wikimedia.org/wikipedia/commons/7/7c/Gorgone_libia_by_marcotambara.jpg',
@@ -1080,10 +1203,11 @@ const kGallery = <String, List<String>>{
     'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Ghadames_-_Altstadt%2C_Thermalquelle.jpg/960px-Ghadames_-_Altstadt%2C_Thermalquelle.jpg',
   ],
   'apollo_cyrene': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Apollo_Kitharoidos_BM_1380.jpg/960px-Apollo_Kitharoidos_BM_1380.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Marble_statue_of_Apollo_holding_a_kithara%2C_British_Museum.jpg/960px-Marble_statue_of_Apollo_holding_a_kithara%2C_British_Museum.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
     'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg/960px-Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Temple_of_Apollo_Columns_and_Hillside_View_-_Cyrene_Shahat_Libya.jpg/960px-Temple_of_Apollo_Columns_and_Hillside_View_-_Cyrene_Shahat_Libya.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Temple_of_Apollo%2C_Cyrene_%2850144963856%29.jpg/960px-Temple_of_Apollo%2C_Cyrene_%2850144963856%29.jpg',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/CireneSantuarioApolloPortico.jpg/960px-CireneSantuarioApolloPortico.jpg',
   ],
 };
 
@@ -1131,17 +1255,65 @@ const kVideos = <String, List<(String, String, String)>>{
   ],
 };
 
+enum ReviewStatus { pending, approved, needsRevision, archived }
+
+extension ReviewStatusX on ReviewStatus {
+  String label(bool ar) => switch (this) {
+        ReviewStatus.pending => ar ? 'بانتظار المراجعة' : 'Pending review',
+        ReviewStatus.approved => ar ? 'معتمد' : 'Approved',
+        ReviewStatus.needsRevision => ar ? 'يحتاج تعديل' : 'Needs revision',
+        ReviewStatus.archived => ar ? 'مؤرشف' : 'Archived',
+      };
+  Color get color => switch (this) {
+        ReviewStatus.pending => const Color(0xFFC59B27),
+        ReviewStatus.approved => const Color(0xFF4E9A5C),
+        ReviewStatus.needsRevision => const Color(0xFFD9772F),
+        ReviewStatus.archived => const Color(0xFFA89885),
+      };
+  IconData get icon => switch (this) {
+        ReviewStatus.pending => Icons.hourglass_top,
+        ReviewStatus.approved => Icons.verified,
+        ReviewStatus.needsRevision => Icons.edit_note,
+        ReviewStatus.archived => Icons.archive_outlined,
+      };
+}
+
+const kDamageLevels = ['منخفض', 'متوسط', 'مرتفع', 'حرج'];
+const kDamageLevelsEn = ['Low', 'Moderate', 'High', 'Critical'];
+
 class RestorationLog {
   final String siteName, materials, report;
   final DateTime createdAt;
   final bool synced;
-  const RestorationLog({
+  ReviewStatus review;
+  /// Admin-set damage level; empty means "read it from the report text".
+  String damageLevel;
+
+  RestorationLog({
     required this.siteName,
     required this.materials,
     required this.report,
     required this.createdAt,
     required this.synced,
+    this.review = ReviewStatus.pending,
+    this.damageLevel = '',
   });
+
+  /// Stable key used to persist the admin's review decision on this device.
+  String get key => '${createdAt.toIso8601String()}|$siteName';
+
+  /// "… الضرر: تآكل متوسط." → ("…", "الضرر: تآكل متوسط")
+  (String, String?) get split {
+    var action = report.trim();
+    String? damage;
+    final k = action.indexOf('الضرر:');
+    if (k >= 0) {
+      damage = action.substring(k).replaceAll(RegExp(r'[.。]+$'), '').trim();
+      action = action.substring(0, k).trim();
+    }
+    if (damageLevel.isNotEmpty) damage = 'الضرر: $damageLevel';
+    return (action, damage);
+  }
 }
 
 // ─────────────────────────────── State ──────────────────────────────────────
@@ -1168,6 +1340,41 @@ class AppState extends ChangeNotifier {
 
   SharedPreferences? _prefs;
 
+  // ── admin-managed catalog & content (persisted locally) ──
+  /// Built-in sites that were edited, plus admin-created sites, by id.
+  final Map<String, HeritageSite> _siteEdits = {};
+  /// Admin-created site ids in creation order.
+  final List<String> _customOrder = [];
+  final Set<String> hiddenIds = {};
+  final Set<String> deletedIds = {};
+  List<(String, List<String>)> quiz = [...kQuiz];
+  Map<String, List<String>> personaSites = {
+    for (final e in kPersonas.entries) e.key: [...e.value.ids]
+  };
+  String bannerAr = 'رحلة عبر آلاف السنين من الحضارات';
+  String bannerEn = 'A journey through thousands of years of civilisation';
+  bool maintenanceNotice = false;
+  bool demoNotice = true;
+  int quizCompletions = 0;
+  final Map<String, (ReviewStatus, String)> _reviews = {};
+
+  bool get isAdmin => role == UserRole.admin;
+
+  /// Every site including hidden ones (admin view).
+  List<HeritageSite> get allSites => [
+        for (final b in kSites)
+          if (!deletedIds.contains(b.id)) _siteEdits[b.id] ?? b,
+        for (final id in _customOrder)
+          if (_siteEdits[id] != null && !deletedIds.contains(id)) _siteEdits[id]!,
+      ];
+
+  /// Sites visible to tourists and conservators.
+  List<HeritageSite> get sites =>
+      allSites.where((x) => !hiddenIds.contains(x.id)).toList();
+
+  HeritageSite? siteById(String id) =>
+      sites.where((x) => x.id == id).firstOrNull;
+
   bool get isExpertRole => role == UserRole.expert;
   bool get quizDone => persona.isNotEmpty;
   bool get showQuiz => !isExpertRole && (!quizDone || retakingQuiz);
@@ -1188,8 +1395,10 @@ class AppState extends ChangeNotifier {
     }
     persona = best;
     retakingQuiz = false;
+    quizCompletions++;
     notifyListeners();
     _save();
+    _saveAdmin();
   }
 
   void resetQuiz() {
@@ -1207,7 +1416,7 @@ class AppState extends ChangeNotifier {
 
   List<String> touristTags(HeritageSite x) {
     final tags = <String>[];
-    if (persona.isNotEmpty && (kPersonas[persona]?.ids.contains(x.id) ?? false)) {
+    if (persona.isNotEmpty && (personaSites[persona]?.contains(x.id) ?? false)) {
       tags.add('موصى به لزيارتك');
     }
     if (x.unesco) tags.add('موقع يونسكو');
@@ -1229,6 +1438,7 @@ class AppState extends ChangeNotifier {
       report: 'تثبيت أحجار الرصيف الشمالي وإزالة الأملاح المتبلورة. الضرر: تآكل متوسط.',
       createdAt: DateTime(2026, 10, 28),
       synced: false,
+      review: ReviewStatus.approved,
     ),
     RestorationLog(
       siteName: 'غدامس القديمة',
@@ -1257,9 +1467,8 @@ class AppState extends ChangeNotifier {
       ar = p.getBool('ar') ?? true;
       notifications = p.getBool('notifications') ?? true;
       loggedIn = p.getBool('loggedIn') ?? false;
-      role = (p.getString('role') ?? 'tourist') == 'expert'
-          ? UserRole.expert
-          : UserRole.tourist;
+      role = UserRole.values.firstWhere((r) => r.name == p.getString('role'),
+          orElse: () => UserRole.tourist);
       name = p.getString('name') ?? '';
       email = p.getString('email') ?? '';
       title = p.getString('title') ?? '';
@@ -1271,6 +1480,233 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ERTH] prefs load failed: $e');
     }
+    _loadAdmin();
+  }
+
+  // ── admin data persistence (single JSON blob; survives logout) ──
+  static const _adminKey = 'erth_admin_v1';
+
+  void _loadAdmin() {
+    try {
+      final raw = _prefs?.getString(_adminKey);
+      if (raw == null) return;
+      final j = jsonDecode(raw) as Map<String, dynamic>;
+      final bases = {for (final b in kSites) b.id: b};
+      for (final e in (j['sites'] as List? ?? const [])) {
+        final m = Map<String, dynamic>.from(e as Map);
+        _siteEdits['${m['id']}'] =
+            HeritageSite.fromJson(m, base: bases['${m['id']}']);
+      }
+      _customOrder
+        ..clear()
+        ..addAll((j['customOrder'] as List? ?? const []).map((e) => '$e'));
+      hiddenIds.addAll((j['hidden'] as List? ?? const []).map((e) => '$e'));
+      deletedIds.addAll((j['deleted'] as List? ?? const []).map((e) => '$e'));
+      final q = j['quiz'] as List?;
+      if (q != null && q.length == kQuiz.length) {
+        quiz = [
+          for (final item in q)
+            ('${item['q']}', [for (final o in item['options'] as List) '$o'])
+        ];
+      }
+      final ps = j['personaSites'] as Map?;
+      if (ps != null) {
+        for (final k in kPersonas.keys) {
+          if (ps[k] is List) {
+            personaSites[k] = [for (final id in ps[k] as List) '$id'];
+          }
+        }
+      }
+      bannerAr = '${j['bannerAr'] ?? bannerAr}';
+      bannerEn = '${j['bannerEn'] ?? bannerEn}';
+      maintenanceNotice = j['maintenance'] == true;
+      demoNotice = j['demoNotice'] != false;
+      quizCompletions = (j['quizCompletions'] as num?)?.toInt() ?? 0;
+      final rv = j['reviews'] as Map? ?? const {};
+      for (final e in rv.entries) {
+        final v = e.value as List;
+        _reviews['${e.key}'] = (
+          ReviewStatus.values.firstWhere((r) => r.name == v[0],
+              orElse: () => ReviewStatus.pending),
+          '${v[1]}'
+        );
+      }
+      _applyReviews();
+    } catch (e) {
+      debugPrint('[ERTH] admin data load failed: $e');
+    }
+  }
+
+  Future<void> _saveAdmin() async {
+    try {
+      final p = _prefs ??= await SharedPreferences.getInstance();
+      await p.setString(
+          _adminKey,
+          jsonEncode({
+            'sites': [for (final x in _siteEdits.values) x.toJson()],
+            'customOrder': _customOrder,
+            'hidden': hiddenIds.toList(),
+            'deleted': deletedIds.toList(),
+            'quiz': [
+              for (final q in quiz) {'q': q.$1, 'options': q.$2}
+            ],
+            'personaSites': personaSites,
+            'bannerAr': bannerAr,
+            'bannerEn': bannerEn,
+            'maintenance': maintenanceNotice,
+            'demoNotice': demoNotice,
+            'quizCompletions': quizCompletions,
+            'reviews': {
+              for (final e in _reviews.entries) e.key: [e.value.$1.name, e.value.$2]
+            },
+          }));
+    } catch (e) {
+      debugPrint('[ERTH] admin data save failed: $e');
+    }
+  }
+
+  void _applyReviews() {
+    for (final l in logs) {
+      final r = _reviews[l.key];
+      if (r != null) {
+        l.review = r.$1;
+        l.damageLevel = r.$2;
+      }
+    }
+  }
+
+  void _adminChanged() {
+    notifyListeners();
+    _saveAdmin();
+  }
+
+  /// Add (id not yet known) or update a site. Built-in sites keep their id.
+  void saveSite(HeritageSite site) {
+    final isNew = !allSites.any((x) => x.id == site.id);
+    _siteEdits[site.id] = site;
+    if (isNew && site.custom && !_customOrder.contains(site.id)) {
+      _customOrder.add(site.id);
+    }
+    deletedIds.remove(site.id);
+    _adminChanged();
+    if (isNew) _syncNewSite(site);
+  }
+
+  /// Best effort: register the new site in Supabase `artifacts` so conservator
+  /// reports can be linked to it. Local state is the source of truth.
+  Future<void> _syncNewSite(HeritageSite site) async {
+    try {
+      await _client?.from('artifacts').insert({'name': site.nameEn});
+    } catch (e) {
+      debugPrint('[ERTH] artifacts insert skipped: $e');
+    }
+  }
+
+  void setHidden(String id, bool hidden) {
+    hidden ? hiddenIds.add(id) : hiddenIds.remove(id);
+    _adminChanged();
+  }
+
+  void deleteSite(String id) {
+    if (_customOrder.contains(id)) {
+      _customOrder.remove(id);
+      _siteEdits.remove(id);
+    } else {
+      deletedIds.add(id);
+    }
+    hiddenIds.remove(id);
+    for (final ids in personaSites.values) {
+      ids.remove(id);
+    }
+    _adminChanged();
+  }
+
+  /// Restore every built-in site to its shipped state (custom sites kept).
+  void restoreBuiltInSites() {
+    _siteEdits.removeWhere((id, _) => !_customOrder.contains(id));
+    deletedIds.clear();
+    hiddenIds.removeWhere((id) => !_customOrder.contains(id));
+    _adminChanged();
+  }
+
+  void setReview(RestorationLog l, ReviewStatus r, {String? damage}) {
+    l.review = r;
+    if (damage != null) l.damageLevel = damage;
+    _reviews[l.key] = (l.review, l.damageLevel);
+    _adminChanged();
+  }
+
+  void setQuizItem(int i, String question, List<String> options) {
+    quiz = [...quiz]..[i] = (question, options);
+    _adminChanged();
+  }
+
+  void setPersonaSites(String persona, List<String> ids) {
+    personaSites[persona] = ids;
+    _adminChanged();
+  }
+
+  void setContent({
+    String? newBannerAr,
+    String? newBannerEn,
+    bool? maintenance,
+    bool? demo,
+  }) {
+    bannerAr = newBannerAr ?? bannerAr;
+    bannerEn = newBannerEn ?? bannerEn;
+    maintenanceNotice = maintenance ?? maintenanceNotice;
+    demoNotice = demo ?? demoNotice;
+    _adminChanged();
+  }
+
+  void resetContent() {
+    quiz = [...kQuiz];
+    personaSites = {
+      for (final e in kPersonas.entries) e.key: [...e.value.ids]
+    };
+    bannerAr = 'رحلة عبر آلاف السنين من الحضارات';
+    bannerEn = 'A journey through thousands of years of civilisation';
+    maintenanceNotice = false;
+    demoNotice = true;
+    _adminChanged();
+  }
+
+  /// App Store 5.1.1(v) / Google Play account deletion: removes the server
+  /// account (via the `delete_user` RPC when deployed) and every piece of
+  /// personal data stored on this device, then returns to the login screen.
+  Future<bool> deleteAccount() async {
+    var serverDeleted = false;
+    final c = _client;
+    if (c != null && c.auth.currentSession != null) {
+      try {
+        await c.rpc('delete_user');
+        serverDeleted = true;
+      } catch (e) {
+        debugPrint('[ERTH] delete_user RPC failed: $e');
+      }
+      try {
+        await c.auth.signOut();
+      } catch (_) {}
+    }
+    name = email = title = bio = license = city = specialization = '';
+    persona = '';
+    retakingQuiz = false;
+    role = UserRole.tourist;
+    loggedIn = false;
+    tab = 0;
+    try {
+      final p = _prefs ??= await SharedPreferences.getInstance();
+      for (final k in const [
+        'loggedIn', 'role', 'name', 'email', 'title', 'bio', 'license',
+        'city', 'specialization', 'quizPersona', 'notifications',
+      ]) {
+        await p.remove(k);
+      }
+    } catch (e) {
+      debugPrint('[ERTH] local wipe failed: $e');
+    }
+    notifyListeners();
+    return serverDeleted;
   }
 
   Future<void> _save() async {
@@ -1280,7 +1716,7 @@ class AppState extends ChangeNotifier {
       await p.setBool('ar', ar);
       await p.setBool('notifications', notifications);
       await p.setBool('loggedIn', loggedIn);
-      await p.setString('role', role == UserRole.expert ? 'expert' : 'tourist');
+      await p.setString('role', role.name);
       await p.setString('name', name);
       await p.setString('email', email);
       await p.setString('title', title);
@@ -1326,6 +1762,16 @@ class AppState extends ChangeNotifier {
   }
 
   // ── auth ──
+  /// Admin sign-in (demo, client-side credential check — see [kAdminEmail]).
+  String? loginAdmin(String mail, String password) {
+    if (mail.trim().toLowerCase() != kAdminEmail || password != kAdminPasscode) {
+      return t('بيانات مدير النظام غير صحيحة', 'Invalid administrator credentials');
+    }
+    _enter(mail: kAdminEmail, fullName: t('مدير النظام', 'System admin'),
+        r: UserRole.admin, lic: '');
+    return null;
+  }
+
   Future<String?> login(String mail, String password) async {
     final c = _client;
     if (c != null) {
@@ -1407,6 +1853,10 @@ class AppState extends ChangeNotifier {
   }
 
   void quickDemo(UserRole r) {
+    if (r == UserRole.admin) {
+      loginAdmin(kAdminEmail, kAdminPasscode);
+      return;
+    }
     _enter(
       mail: r == UserRole.expert ? 'expert@erth.demo' : 'guest@erth.demo',
       fullName: r == UserRole.expert ? 'د. خبير مرمم' : 'زائر تجريبي',
@@ -1429,8 +1879,12 @@ class AppState extends ChangeNotifier {
     name = fullName;
     role = r;
     license = lic;
-    if (title.isEmpty) {
-      title = r == UserRole.expert ? 'Conservator' : 'Visitor';
+    if (title.isEmpty || r == UserRole.admin || title == 'Administrator') {
+      title = switch (r) {
+        UserRole.expert => 'Conservator',
+        UserRole.admin => 'Administrator',
+        UserRole.tourist => 'Visitor',
+      };
     }
     loggedIn = true;
     tab = 0;
@@ -1515,7 +1969,7 @@ class AppState extends ChangeNotifier {
 
   List<HeritageSite> get filteredSites {
     final q = query.trim().toLowerCase();
-    return kSites.where((s) {
+    return sites.where((s) {
       final okCat = category == kAll || s.category == category;
       final okQ = q.isEmpty ||
           s.nameAr.contains(q) ||
@@ -1526,11 +1980,16 @@ class AppState extends ChangeNotifier {
     }).toList();
   }
 
-  int get approvedReports => logs.length;
+  int get approvedReports =>
+      logs.where((l) => l.review == ReviewStatus.approved).length;
+  int get pendingReports =>
+      logs.where((l) => l.review == ReviewStatus.pending).length;
+  int get activeReports =>
+      logs.where((l) => l.review != ReviewStatus.archived).length;
   int get underTreatment =>
-      kSites.where((s) => s.status == Preservation.underTreatment).length;
+      sites.where((s) => s.status == Preservation.underTreatment).length;
   int get urgentAlerts =>
-      kSites.where((s) => s.status == Preservation.critical).length;
+      sites.where((s) => s.status == Preservation.critical).length;
 
   // ── restoration logs (Supabase with local fallback) ──
   Future<void> loadLogs() async {
@@ -1554,7 +2013,7 @@ class AppState extends ChangeNotifier {
           .limit(50);
       final remote = (rows as List).map((r) {
         final en = names['${r['artifact_id']}'];
-        final site = kSites.where((s) => s.nameEn == en).firstOrNull;
+        final site = allSites.where((s) => s.nameEn == en).firstOrNull;
         return RestorationLog(
           siteName: site?.nameAr ?? en ?? 'موقع أثري',
           materials: '${r['chemical_materials'] ?? ''}',
@@ -1567,6 +2026,7 @@ class AppState extends ChangeNotifier {
       logs
         ..removeWhere((l) => l.synced)
         ..insertAll(0, remote);
+      _applyReviews();
       offline = false;
     } catch (e) {
       debugPrint('[ERTH] fetch restoration_logs failed: $e');
@@ -1587,7 +2047,7 @@ class AppState extends ChangeNotifier {
       try {
         String? artifactId;
         final needle = siteName.trim().toLowerCase();
-        final match = kSites
+        final match = allSites
             .where((s) =>
                 s.nameAr == siteName.trim() || s.nameEn.toLowerCase() == needle)
             .firstOrNull;
@@ -1814,7 +2274,9 @@ class _AuthScreenState extends State<AuthScreen> {
       busy = true;
       error = null;
     });
-    final err = signup
+    final err = role == UserRole.admin
+        ? s.loginAdmin(_email.text.trim(), _pass.text)
+        : signup
         ? await s.signUp(
             mail: _email.text.trim(),
             password: _pass.text,
@@ -1909,8 +2371,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               Row(children: [
                                 _tab(s.t('تسجيل الدخول', 'Login'), !signup,
                                     () => setState(() => signup = false)),
-                                _tab(s.t('إنشاء حساب جديد', 'Register'), signup,
-                                    () => setState(() => signup = true)),
+                                if (role != UserRole.admin)
+                                  _tab(s.t('إنشاء حساب جديد', 'Register'), signup,
+                                      () => setState(() => signup = true)),
                               ]),
                               const SizedBox(height: 16),
                               SegmentedButton<UserRole>(
@@ -1925,11 +2388,44 @@ class _AuthScreenState extends State<AuthScreen> {
                                       icon: const Icon(Icons.verified, size: 18),
                                       label: Text(
                                           s.t('خبير مرمم معتمد', 'Conservator'))),
+                                  ButtonSegment(
+                                      value: UserRole.admin,
+                                      icon: const Icon(
+                                          Icons.admin_panel_settings_outlined,
+                                          size: 18),
+                                      label: Text(s.t('مدير النظام', 'Admin'))),
                                 ],
                                 selected: {role},
-                                onSelectionChanged: (v) =>
-                                    setState(() => role = v.first),
+                                onSelectionChanged: (v) => setState(() {
+                                  role = v.first;
+                                  error = null;
+                                  if (role == UserRole.admin) signup = false;
+                                }),
                               ),
+                              if (role == UserRole.admin) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: kGold.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                        color: kGold.withValues(alpha: 0.4)),
+                                  ),
+                                  child: Row(children: [
+                                    const Icon(Icons.shield_outlined,
+                                        color: kGoldLight, size: 20),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        s.t('دخول المدير يتطلب البريد ($kAdminEmail) ورمز المرور. للجنة التقييم: استخدم زر الدخول السريع بالأسفل.',
+                                            'Admin access requires $kAdminEmail and the passcode. Evaluation committee: use the quick login button below.'),
+                                        style: captionStyle(12.5),
+                                      ),
+                                    ),
+                                  ]),
+                                ),
+                              ],
                               const SizedBox(height: 14),
                               if (signup) ...[
                                 TextFormField(
@@ -2039,9 +2535,16 @@ class _AuthScreenState extends State<AuthScreen> {
                               const SizedBox(height: 10),
                               GlassButton(
                                 onPressed: () => s.quickDemo(role),
-                                icon: Icons.bolt,
-                                label: s.t('دخول سريع (تجريبي)', 'Quick demo access'),
+                                icon: role == UserRole.admin
+                                    ? Icons.admin_panel_settings
+                                    : Icons.bolt,
+                                label: role == UserRole.admin
+                                    ? s.t('دخول سريع كمدير (لجنة التقييم)',
+                                        'Demo admin quick login')
+                                    : s.t('دخول سريع (تجريبي)', 'Quick demo access'),
                               ),
+                              const SizedBox(height: 12),
+                              LegalLinks(state: s),
                             ],
                           ),
                         ),
@@ -2067,6 +2570,7 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = state;
+    if (s.isAdmin) return AdminShell(state: s);
     final isExpert = s.role == UserRole.expert;
     final pages = isExpert
         ? <Widget>[
@@ -2225,6 +2729,53 @@ class _GuidePill extends StatelessWidget {
 }
 
 // ─────────────────────────── Shared widgets ─────────────────────────────────
+
+class _NoticeBanner extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String text;
+  const _NoticeBanner(
+      {required this.icon, required this.color, required this.text});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+        ),
+        child: Row(children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: subStyle(13.5))),
+        ]),
+      );
+}
+
+class ReviewChip extends StatelessWidget {
+  final ReviewStatus status;
+  final bool ar;
+  const ReviewChip(this.status, this.ar, {super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: status.color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: status.color.withValues(alpha: 0.6)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(status.icon, size: 14, color: status.color),
+          const SizedBox(width: 5),
+          Text(status.label(ar),
+              style: GoogleFonts.tajawal(
+                  fontSize: 12, fontWeight: FontWeight.w700, color: status.color)),
+        ]),
+      );
+}
 
 class _OfflineBanner extends StatelessWidget {
   final AppState s;
@@ -2828,7 +3379,7 @@ class HomeTab extends StatelessWidget {
     final s = state;
     final p = Pal.of(context);
     final isExpert = s.role == UserRole.expert;
-    final unesco = kSites.where((x) => x.unesco).length;
+    final unesco = s.sites.where((x) => x.unesco).length;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -2854,8 +3405,7 @@ class HomeTab extends StatelessWidget {
                     isExpert
                         ? s.t('لوحة متابعة أعمال الترميم والعتاد',
                             'Restoration and equipment dashboard')
-                        : s.t('رحلة عبر آلاف السنين من الحضارات',
-                            'A journey through thousands of years of civilisation'),
+                        : s.t(s.bannerAr, s.bannerEn),
                     style: subStyle(14)),
               ]),
             ),
@@ -2864,6 +3414,18 @@ class HomeTab extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 18),
+        if (s.maintenanceNotice)
+          _NoticeBanner(
+              icon: Icons.construction,
+              color: const Color(0xFFD9772F),
+              text: s.t('التطبيق في وضع الصيانة: قد تتأخر بعض التحديثات مؤقتًا.',
+                  'Maintenance mode: some updates may be temporarily delayed.')),
+        if (s.demoNotice)
+          _NoticeBanner(
+              icon: Icons.info_outline,
+              color: kGold,
+              text: s.t('نسخة تقييم تجريبية: بعض البيانات والنتائج للعرض فقط.',
+                  'Evaluation build: some data and results are for demonstration only.')),
         if (s.offline) _OfflineBanner(s),
         if (!isExpert)
           AnimatedSize(
@@ -2892,10 +3454,10 @@ class HomeTab extends StatelessWidget {
                 ]
               : [
                   _Kpi(s.t('موقعًا في الدليل', 'Sites in catalog'),
-                      '${kSites.length}', Icons.account_balance, p.primary),
+                      '${s.sites.length}', Icons.account_balance, p.primary),
                   _Kpi(s.t('مواقع اليونسكو', 'UNESCO sites'), '$unesco',
                       Icons.public, p.accent),
-                  _Kpi(s.t('قصص وتواريخ', 'Stories'), '${kSites.length}',
+                  _Kpi(s.t('قصص وتواريخ', 'Stories'), '${s.sites.length}',
                       Icons.menu_book, const Color(0xFF4E9A5C)),
                 ];
           return c.maxWidth > 640
@@ -2928,10 +3490,10 @@ class HomeTab extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             children: [
               for (final x in (isExpert
-                  ? kSites.where((x) =>
+                  ? s.sites.where((x) =>
                       x.status == Preservation.critical ||
                       x.status == Preservation.underTreatment)
-                  : kSites.where((x) => x.unesco)))
+                  : s.sites.where((x) => x.unesco)))
                 SizedBox(
                   width: 270,
                   child: Padding(
@@ -2946,7 +3508,8 @@ class HomeTab extends StatelessWidget {
         FilledButton.tonalIcon(
           onPressed: () => s.setTab(1),
           icon: const Icon(Icons.search),
-          label: Text(s.t('استعرض جميع المواقع الـ 14', 'Browse all 14 sites')),
+          label: Text(s.t('استعرض جميع المواقع الـ ${s.sites.length}',
+              'Browse all ${s.sites.length} sites')),
         ),
         const SizedBox(height: 90),
       ],
@@ -2967,7 +3530,7 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
   final List<String> answers = [];
 
   void _pick(String letter) {
-    if (q + 1 < kQuiz.length) {
+    if (q + 1 < widget.state.quiz.length) {
       setState(() {
         answers.add(letter);
         q++;
@@ -2980,7 +3543,8 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    final item = kQuiz[q];
+    final quiz = widget.state.quiz;
+    final item = quiz[q];
     const letters = ['A', 'B', 'C', 'D'];
     const marks = ['أ', 'ب', 'ج', 'د'];
     return Container(
@@ -3011,14 +3575,14 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Text('السؤال ${q + 1} من ${kQuiz.length}',
+          Text('السؤال ${q + 1} من ${quiz.length}',
               style: TextStyle(color: p.text2, fontSize: 12)),
           const SizedBox(width: 12),
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: TweenAnimationBuilder<double>(
-                tween: Tween(end: (q + 1) / kQuiz.length),
+                tween: Tween(end: (q + 1) / quiz.length),
                 duration: const Duration(milliseconds: 350),
                 builder: (_, v, __) => LinearProgressIndicator(
                     value: v, minHeight: 7, color: p.accent, backgroundColor: p.line),
@@ -3096,7 +3660,8 @@ class _Recommendations extends StatelessWidget {
     final p = Pal.of(context);
     final per = kPersonas[state.persona]!;
     final sites = [
-      for (final id in per.ids) kSites.firstWhere((x) => x.id == id)
+      for (final id in state.personaSites[state.persona] ?? const <String>[])
+        if (state.siteById(id) case final x?) x
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(
@@ -3420,8 +3985,8 @@ class _ScannerTabState extends State<ScannerTab>
         ]),
         const SizedBox(height: 6),
         Text(
-            s.t('نسخة تجريبية: النتائج محاكاة ولا تمثل تحليلاً حقيقياً للصورة.',
-                'Demo: results are simulated and are not a real image analysis.'),
+            s.t('نسخة تجريبية: النتائج محاكاة تعليمية ولا تمثل تحليلاً مخبرياً أو كيميائياً حقيقياً للصورة، ولا تقدم أي ادعاءات طبية أو تتعلق بالسلامة.',
+                'Demo: results are an educational simulation, not a real laboratory or chemical analysis of the image, and make no medical or safety claims.'),
             style: captionStyle(13)),
         const SizedBox(height: 16),
         Container(
@@ -3661,15 +4226,9 @@ class LogsTab extends StatelessWidget {
   String _fmt(DateTime d) =>
       '${d.year}/${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}';
 
-  Widget _logCard(RestorationLog l) {
+  Widget _logCard(RestorationLog l, bool ar) {
     // Split "… الضرر: تآكل متوسط." into the action text and a damage pill.
-    var action = l.report.trim();
-    String? damage;
-    final k = action.indexOf('الضرر:');
-    if (k >= 0) {
-      damage = action.substring(k).replaceAll(RegExp(r'[.。]+$'), '').trim();
-      action = action.substring(0, k).trim();
-    }
+    final (action, damage) = l.split;
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
@@ -3691,6 +4250,7 @@ class LogsTab extends StatelessWidget {
         Wrap(spacing: 8, runSpacing: 10, children: [
           if (l.materials.trim().isNotEmpty) Pill.formula(l.materials),
           if (damage != null) Pill.damage(damage),
+          ReviewChip(l.review, ar),
         ]),
       ]),
     );
@@ -3719,7 +4279,8 @@ class LogsTab extends StatelessWidget {
                   child: Text(s.t('لا توجد تقارير بعد', 'No reports yet'),
                       style: TextStyle(color: p.text2))),
             ),
-          for (final l in s.logs) _logCard(l),
+          for (final l in s.logs.where((l) => l.review != ReviewStatus.archived))
+            _logCard(l, s.ar),
         ],
       ),
     );
@@ -3809,7 +4370,7 @@ class _AddLogFormState extends State<_AddLogForm> {
               const SizedBox(height: 16),
               Autocomplete<String>(
                 initialValue: TextEditingValue(text: widget.site),
-                optionsBuilder: (v) => kSites
+                optionsBuilder: (v) => s.sites
                     .map((x) => s.ar ? x.nameAr : x.nameEn)
                     .where((n) => n.toLowerCase().contains(v.text.toLowerCase())),
                 onSelected: (v) => _site.text = v,
@@ -4062,8 +4623,8 @@ class _AccountTabState extends State<AccountTab> {
             ),
           ]),
         ),
-        section(s.t('نوع الحساب', 'Account type')),
-        SegmentedButton<UserRole>(
+        if (!s.isAdmin) section(s.t('نوع الحساب', 'Account type')),
+        if (!s.isAdmin) SegmentedButton<UserRole>(
           showSelectedIcon: false,
           segments: [
             ButtonSegment(
@@ -4083,7 +4644,7 @@ class _AccountTabState extends State<AccountTab> {
           Text('${s.t('رقم الترخيص', 'License ID')}: ${s.license}',
               style: TextStyle(color: p.text2)),
         ],
-        if (!isExpert) ...[
+        if (!isExpert && !s.isAdmin) ...[
           section(s.t('اهتماماتي الأثرية', 'My heritage interests')),
           Container(
             padding: const EdgeInsets.all(14),
@@ -4118,7 +4679,9 @@ class _AccountTabState extends State<AccountTab> {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: p.line),
           ),
-          child: Column(children: [
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(children: [
             SwitchListTile(
               value: s.notifications,
               onChanged: s.setNotifications,
@@ -4132,6 +4695,7 @@ class _AccountTabState extends State<AccountTab> {
               title: Text(s.t('اللغة العربية', 'Arabic language')),
             ),
           ]),
+          ),
         ),
         section(s.t('تثبيت التطبيق', 'Install app')),
         Container(
@@ -4191,6 +4755,29 @@ class _AccountTabState extends State<AccountTab> {
           icon: const Icon(Icons.logout),
           label: Text(s.t('تسجيل الخروج', 'Log out')),
         ),
+        section(s.t('الخصوصية والبيانات', 'Privacy & data')),
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          onPressed: () => showLegalSheet(context, s),
+          icon: const Icon(Icons.privacy_tip_outlined),
+          label: Text(s.t('سياسة الخصوصية وشروط الاستخدام',
+              'Privacy Policy & Terms of Use')),
+        ),
+        const SizedBox(height: 10),
+        if (!s.isAdmin)
+          TextButton.icon(
+            style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFFE0675A),
+                backgroundColor: const Color(0xFF8B261D).withValues(alpha: 0.12),
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                        color: const Color(0xFFD64535).withValues(alpha: 0.35)))),
+            onPressed: () => confirmDeleteAccount(context, s),
+            icon: const Icon(Icons.delete_forever_outlined),
+            label: Text(s.t('حذف الحساب والبيانات نهائيًا', 'Delete account & data')),
+          ),
       ],
     );
   }
@@ -4335,7 +4922,7 @@ class _ChatSheetState extends State<ChatSheet> {
   String _localAnswer(String q) {
     final l = q.toLowerCase();
     final ar = s.ar;
-    for (final x in kSites) {
+    for (final x in s.sites) {
       if (l.contains(x.nameEn.toLowerCase().split(' ').first.toLowerCase()) ||
           q.contains(x.nameAr.split(' ').first)) {
         return '${x.name(ar)} — ${x.era(ar)}\n${x.story(ar)}'

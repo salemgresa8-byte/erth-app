@@ -47,6 +47,10 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>يستخدم «ماسح العتاد والآثار» الكاميرا لتصوير القطع الأثرية وملصقات مواد الترميم. تُعالج الصورة على جهازك ولا تُرفع. ERTH uses the camera in the Artifact Scanner to photograph artifacts and conservation-material labels; images stay on your device.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يتيح لك «إرث» اختيار صورة قطعة أثرية من مكتبة الصور لفحصها في الماسح. لا تُرفع الصور. ERTH lets you choose an artifact photo from your library to examine in the Artifact Scanner; photos are not uploaded.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

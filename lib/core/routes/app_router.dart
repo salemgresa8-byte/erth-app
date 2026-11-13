@@ -19,7 +19,7 @@ abstract class AppRoutes {
 }
 
 /// `extra` for [AppRoutes.story] and [AppRoutes.restorationForm] is the
-/// artifact row (Map<String, dynamic>) fetched from Supabase.
+/// artifact row (`Map<String, dynamic>`) fetched from Supabase.
 final GoRouter appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
   routes: [
