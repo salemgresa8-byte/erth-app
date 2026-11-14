@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +16,8 @@ import 'pwa/pwa.dart';
 
 part 'admin.dart';
 part 'i18n.dart';
+part 'heritage_photos.dart';
+part 'heritage_stories.dart';
 part 'legal.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,6 +43,11 @@ const _openRouterModels = [
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // iOS Safari kills the tab (Jetsam) when decoded images pile up; keep the
+  // decoded-image cache small and bounded.
+  PaintingBinding.instance.imageCache
+    ..maximumSize = 60
+    ..maximumSizeBytes = 40 << 20;
   final state = AppState();
   // Local prefs (localStorage on web) are near-instant; bound them anyway so
   // broken or blocked storage can never hold back the first frame.
@@ -1224,72 +1230,61 @@ const kSites = <HeritageSite>[
 ];
 
 // Extra high-resolution photos (Wikimedia Commons) per site id.
-const kGallery = <String, List<String>>{
-  'leptis': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Leptis_libya.jpg/960px-Leptis_libya.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Forum_Leptis_Magna_04.JPG/960px-Forum_Leptis_Magna_04.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Leptis_Magna_Theatre.jpg/960px-Leptis_Magna_Theatre.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Leptis_Magna_-_Severan_Basilika.jpg/960px-Leptis_Magna_-_Severan_Basilika.jpg',
-  ],
-  'cyrene': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Archaeological_Site_of_Cyrene-109023.jpg/960px-Archaeological_Site_of_Cyrene-109023.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Archaeological_Site_of_Cyrene-109025.jpg/960px-Archaeological_Site_of_Cyrene-109025.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg/960px-Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Cyrene_Historical_Site.jpg/960px-Cyrene_Historical_Site.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
-  ],
-  'sabratha': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Theatre_of_Sabratha%2C_Libya.jpg/960px-Theatre_of_Sabratha%2C_Libya.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg/960px-Sabratha_-_B%C3%BChnenhaus_des_Theaters_2._Jh..jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/0/09/Roman_ruins_by_the_sea_in_Sabratha%2C_Libya.jpg',
-  ],
-  'ghadames': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Ghadames%2C_2006.jpg/960px-Ghadames%2C_2006.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Ghadames_Old_city_from_the_air.jpg/960px-Ghadames_Old_city_from_the_air.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Covered_Street_in_Ghadames_%285282815853%29.jpg/960px-Covered_Street_in_Ghadames_%285282815853%29.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Ghadames_street_at_moring.jpg/960px-Ghadames_street_at_moring.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Libya_Ghadames_Old_Town_Wall_Entrance.JPG/960px-Libya_Ghadames_Old_Town_Wall_Entrance.JPG',
-  ],
-  'redcastle': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg/960px-Red_Castle_%28Assaraya_Alhamra%29%2C_Tripoli%2C_Libya.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Red_Castle_Museum.jpg/960px-Red_Castle_Museum.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/The_Red_Castle.jpg/960px-The_Red_Castle.jpg',
-  ],
-  'silin': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
-  ],
-  'zliten': [
-    'https://upload.wikimedia.org/wikipedia/commons/f/f3/Gladiators_from_the_Zliten_mosaic_2.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Gladiators_from_the_Zliten_mosaic_4.JPG/960px-Gladiators_from_the_Zliten_mosaic_4.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Musicians_from_Zliten_mosaic.JPG/960px-Musicians_from_Zliten_mosaic.JPG',
-  ],
-  'medusa': [
-    'https://upload.wikimedia.org/wikipedia/commons/7/7c/Gorgone_libia_by_marcotambara.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Forum_Leptis_Magna_04.JPG/960px-Forum_Leptis_Magna_04.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/95/Leptis_Magna_-_Fragment_Kopf.jpg/960px-Leptis_Magna_-_Fragment_Kopf.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Red_Castle_Museum.jpg/960px-Red_Castle_Museum.jpg',
-  ],
-  'severus': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Bust_of_Septimius_Severus_%28GL_357%29.jpg/960px-Bust_of_Septimius_Severus_%28GL_357%29.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/b/bf/Septimius_Severus_bust_Thessalonike_Greece_01.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Leptis_Magna_Arch_of_Septimius_Severus.jpg/960px-Leptis_Magna_Arch_of_Septimius_Severus.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Severan_Basilica.JPG/960px-Severan_Basilica.JPG',
-  ],
-  'ghadames_ms': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Maghribi_script.jpg/960px-Maghribi_script.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Quran_19th_century_Nigeria%2C_Maghribi_style%2C_Boston_Museum_of_Fine_Arts.jpg/960px-Quran_19th_century_Nigeria%2C_Maghribi_style%2C_Boston_Museum_of_Fine_Arts.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/Libya_Ghadames_Old_Town_Spring_Water_Pool.JPG/960px-Libya_Ghadames_Old_Town_Spring_Water_Pool.JPG',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Ghadames_-_Altstadt%2C_Thermalquelle.jpg/960px-Ghadames_-_Altstadt%2C_Thermalquelle.jpg',
-  ],
-  'apollo_cyrene': [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Cyrene_Apollo_temple.jpg/960px-Cyrene_Apollo_temple.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg/960px-Exedra_of_Apollo_Karneios%2C_Cyrene_%2850144977036%29.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Temple_of_Apollo_Columns_and_Hillside_View_-_Cyrene_Shahat_Libya.jpg/960px-Temple_of_Apollo_Columns_and_Hillside_View_-_Cyrene_Shahat_Libya.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Temple_of_Apollo%2C_Cyrene_%2850144963856%29.jpg/960px-Temple_of_Apollo%2C_Cyrene_%2850144963856%29.jpg',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/CireneSantuarioApolloPortico.jpg/960px-CireneSantuarioApolloPortico.jpg',
-  ],
+/// Extra photos per built-in site, from the captioned [kPhotoSet].
+final Map<String, List<String>> kGallery = {
+  for (final e in kPhotoSet.entries) e.key: [for (final p in e.value) p.$1],
 };
+
+final Map<String, (String, String)> _kCaptions = {
+  for (final list in kPhotoSet.values)
+    for (final p in list) p.$1: (p.$2, p.$3),
+};
+
+/// Caption for a gallery photo, falling back to the site name.
+String photoCaption(String url, HeritageSite site, bool ar) {
+  final c = _kCaptions[url];
+  if (c == null) return site.name(ar);
+  return ar ? c.$1 : L(c.$2);
+}
+
+/// Wikimedia serves only standard thumbnail widths (500/960 work, 640/800
+/// are rejected), so small tiles swap the 960px thumb for the 500px one.
+String smallPhoto(String url) => url.contains('/thumb/') && url.contains('/960px-')
+    ? url.replaceFirst('/960px-', '/500px-')
+    : url;
+
+/// Memory-safe network photo: decoded at [cacheWidth] instead of full size,
+/// and decoded by CanvasKit (CORS) rather than as an HTML <img> platform
+/// view - stacks of <img> overlays were exhausting iOS Safari's GPU memory.
+class NetPhoto extends StatelessWidget {
+  final String url;
+  final int cacheWidth;
+  final BoxFit fit;
+  final Widget Function(BuildContext)? placeholder;
+  const NetPhoto(this.url,
+      {super.key,
+      required this.cacheWidth,
+      this.fit = BoxFit.cover,
+      this.placeholder});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget ph(BuildContext c) =>
+        placeholder?.call(c) ?? ColoredBox(color: surfaceColor);
+    return Image.network(
+      url,
+      fit: fit,
+      width: double.infinity,
+      height: double.infinity,
+      cacheWidth: cacheWidth,
+      filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
+      webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+      errorBuilder: (c, __, ___) => ph(c),
+      loadingBuilder: (c, child, progress) => progress == null ? child : ph(c),
+    );
+  }
+}
 
 // Documentary / tour video links. These are YouTube search pages (always valid);
 // the viewer picks the video. Sites without an entry fall back to a search.
@@ -2257,6 +2252,7 @@ class _ErthAppState extends State<ErthApp> {
         navigatorKey: _navKey,
         title: 'إرث | ERTH',
         debugShowCheckedModeBanner: false,
+        scrollBehavior: const _ErthScrollBehavior(),
         theme: buildTheme(),
         themeMode: ThemeMode.light,
         builder: (context, child) => Directionality(
@@ -2273,6 +2269,15 @@ class _ErthAppState extends State<ErthApp> {
       },
     );
   }
+}
+
+/// iOS-style bouncing scroll everywhere (also on Android and desktop web).
+class _ErthScrollBehavior extends MaterialScrollBehavior {
+  const _ErthScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 }
 
 // Language + theme controls shared by the AppBar and the auth screen.
@@ -2902,10 +2907,9 @@ class GlossyNavFrame extends StatelessWidget {
       child: child,
     );
     if (!gLight) return bar;
-    return ClipRect(
-      child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: bar),
-    );
+    // Solid translucent surface instead of a BackdropFilter blur: blurs over
+    // scrolling content caused GPU memory spikes and crashes on iOS Safari.
+    return ColoredBox(color: surfaceColor.withValues(alpha: 0.94), child: bar);
   }
 }
 
@@ -3150,23 +3154,20 @@ class SiteImage extends StatelessWidget {
 
   /// Hero scope: must be unique per visible list so tags never collide.
   final String scope;
-  const SiteImage(this.site, {super.key, this.scope = ''});
+
+  /// Cards and lists use the 500px source; the site page uses 960px.
+  final bool small;
+  const SiteImage(this.site, {super.key, this.scope = '', this.small = false});
 
   @override
   Widget build(BuildContext context) {
-    return Hero(tag: 'site-$scope${site.id}', child: _img());
-  }
-
-  Widget _img() {
-    return Image.network(
-      site.image,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) => _Illustration(site),
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : _Illustration(site),
+    return Hero(
+      tag: 'site-$scope${site.id}',
+      child: NetPhoto(
+        small ? smallPhoto(site.image) : site.image,
+        cacheWidth: 700,
+        placeholder: (_) => _Illustration(site),
+      ),
     );
   }
 }
@@ -3190,7 +3191,8 @@ class _SiteCardState extends State<SiteCard> {
     final p = Pal.of(context);
     final s = widget.site;
     final ar = widget.state.ar;
-    return MouseRegion(
+    return RepaintBoundary(
+      child: MouseRegion(
       onEnter: (_) => setState(() => hover = true),
       onExit: (_) => setState(() => hover = false),
       child: AnimatedScale(
@@ -3218,7 +3220,7 @@ class _SiteCardState extends State<SiteCard> {
               children: [
                 Expanded(
                   child: Stack(fit: StackFit.expand, children: [
-                    SiteImage(s, scope: widget.scope),
+                    SiteImage(s, scope: widget.scope, small: true),
                     PositionedDirectional(
                         top: 10,
                         start: 10,
@@ -3276,6 +3278,7 @@ class _SiteCardState extends State<SiteCard> {
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -3343,6 +3346,37 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
                   fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
           const SizedBox(height: 8),
           Text(s.story(ar), style: const TextStyle(height: 1.8, fontSize: 15)),
+          if (kRichStory[s.id] case final sections?)
+            for (var i = 0; i < sections.length && i < kStoryHeadings.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(top: 18),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Container(
+                            width: 4,
+                            height: 20,
+                            decoration: BoxDecoration(
+                                color: p.accent,
+                                borderRadius: BorderRadius.circular(2))),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                              ar
+                                  ? kStoryHeadings[i].$1
+                                  : L(kStoryHeadings[i].$2),
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: inkGold)),
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(ar ? sections[i].$1 : sections[i].$2,
+                          style: const TextStyle(height: 1.8, fontSize: 15)),
+                    ]),
+              ),
           const SizedBox(height: 20),
           Text(
               state.isExpertRole
@@ -3419,7 +3453,7 @@ class _GalleryStrip extends StatelessWidget {
       Row(children: [
         Icon(Icons.photo_library_outlined, size: 20, color: inkGold),
         const SizedBox(width: 8),
-        Text(ar ? 'معرض الصور' : 'Photo gallery',
+        Text(ar ? 'معرض الصور' : L('Photo gallery'),
             style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
         const SizedBox(width: 8),
@@ -3431,15 +3465,46 @@ class _GalleryStrip extends StatelessWidget {
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: photos.length,
+          addAutomaticKeepAlives: false,
           separatorBuilder: (_, __) => const SizedBox(width: 10),
-          itemBuilder: (ctx, i) => InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _openViewer(ctx, photos, i),
-            child: ClipRRect(
+          itemBuilder: (ctx, i) => RepaintBoundary(
+            child: InkWell(
               borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                width: 210,
-                child: _NetPhoto(photos[i], site),
+              onTap: () => _openLightbox(ctx, site, photos, i, ar),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  width: 210,
+                  child: Stack(fit: StackFit.expand, children: [
+                    NetPhoto(smallPhoto(photos[i]),
+                        cacheWidth: 320,
+                        placeholder: (_) => _Illustration(site)),
+                    PositionedDirectional(
+                      start: 0,
+                      end: 0,
+                      bottom: 0,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Color(0x00000000), Color(0xCC000000)],
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 14, 8, 6),
+                          child: Text(photoCaption(photos[i], site, ar),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
               ),
             ),
           ),
@@ -3447,65 +3512,142 @@ class _GalleryStrip extends StatelessWidget {
       ),
     ]);
   }
-
-  void _openViewer(BuildContext context, List<String> photos, int start) {
-    showDialog<void>(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
-        child: Stack(children: [
-          PageView.builder(
-            controller: PageController(initialPage: start),
-            itemCount: photos.length,
-            itemBuilder: (_, i) => InteractiveViewer(
-              minScale: 1,
-              maxScale: 5,
-              child: Center(
-                child: Image.network(
-                  photos[i],
-                  fit: BoxFit.contain,
-                  webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-                  errorBuilder: (_, __, ___) => const Icon(
-                      Icons.broken_image_outlined,
-                      color: Colors.white54,
-                      size: 64),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: SafeArea(
-              child: IconButton.filledTonal(
-                onPressed: () => Navigator.of(ctx).pop(),
-                icon: const Icon(Icons.close),
-              ),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
 }
 
-class _NetPhoto extends StatelessWidget {
-  final String url;
+void _openLightbox(BuildContext context, HeritageSite site, List<String> photos,
+    int start, bool ar) {
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black,
+    builder: (ctx) => _PhotoLightbox(
+        site: site, photos: photos, start: start, ar: ar),
+  );
+}
+
+/// Full-screen swipeable viewer: one decoded page at a time (plus its
+/// neighbours), each capped at 1000px wide, with caption and counter.
+class _PhotoLightbox extends StatefulWidget {
   final HeritageSite site;
-  const _NetPhoto(this.url, this.site);
+  final List<String> photos;
+  final int start;
+  final bool ar;
+  const _PhotoLightbox(
+      {required this.site,
+      required this.photos,
+      required this.start,
+      required this.ar});
+
+  @override
+  State<_PhotoLightbox> createState() => _PhotoLightboxState();
+}
+
+class _PhotoLightboxState extends State<_PhotoLightbox> {
+  late final PageController _ctrl = PageController(initialPage: widget.start);
+  late int _i = widget.start;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _go(int d) {
+    final n = (_i + d).clamp(0, widget.photos.length - 1);
+    _ctrl.animateToPage(n,
+        duration: const Duration(milliseconds: 280), curve: Curves.easeOut);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-      errorBuilder: (_, __, ___) => _Illustration(site),
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : _Illustration(site),
+    final photos = widget.photos;
+    final wide = MediaQuery.of(context).size.width > 700;
+    return Dialog.fullscreen(
+      backgroundColor: Colors.black,
+      child: Stack(children: [
+        PageView.builder(
+          controller: _ctrl,
+          itemCount: photos.length,
+          allowImplicitScrolling: false,
+          onPageChanged: (i) => setState(() => _i = i),
+          itemBuilder: (_, i) => InteractiveViewer(
+            minScale: 1,
+            maxScale: 4,
+            child: Center(
+              child: NetPhoto(
+                photos[i],
+                cacheWidth: 1000,
+                fit: BoxFit.contain,
+                placeholder: (_) => const Center(
+                    child: CircularProgressIndicator(color: kGold)),
+              ),
+            ),
+          ),
+        ),
+        PositionedDirectional(
+          start: 0,
+          end: 0,
+          bottom: 0,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x00000000), Color(0xE6000000)],
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 36, 20, 18),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text(photoCaption(photos[_i], widget.site, widget.ar),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text('${widget.site.name(widget.ar)} • ${_i + 1} / ${photos.length}',
+                      style: const TextStyle(color: kGoldLight, fontSize: 12.5)),
+                  const SizedBox(height: 4),
+                  const Text('Wikimedia Commons',
+                      style: TextStyle(color: Colors.white38, fontSize: 10.5)),
+                ]),
+              ),
+            ),
+          ),
+        ),
+        if (wide && _i > 0)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: IconButton.filledTonal(
+                  onPressed: () => _go(-1),
+                  icon: const Icon(Icons.chevron_left)),
+            ),
+          ),
+        if (wide && _i < photos.length - 1)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: IconButton.filledTonal(
+                  onPressed: () => _go(1),
+                  icon: const Icon(Icons.chevron_right)),
+            ),
+          ),
+        PositionedDirectional(
+          top: 12,
+          end: 12,
+          child: SafeArea(
+            child: IconButton.filledTonal(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -3703,6 +3845,7 @@ class HomeTab extends StatelessWidget {
           height: 300,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            addAutomaticKeepAlives: false,
             children: [
               for (final x in (isExpert
                   ? s.sites.where((x) =>
@@ -3923,6 +4066,7 @@ class _Recommendations extends StatelessWidget {
         height: 300,
         child: ListView(
           scrollDirection: Axis.horizontal,
+          addAutomaticKeepAlives: false,
           children: [
             for (final x in sites)
               SizedBox(
@@ -4018,6 +4162,7 @@ class SitesTab extends StatelessWidget {
             : LayoutBuilder(builder: (context, c) {
                 final cols = c.maxWidth > 900 ? 3 : (c.maxWidth > 560 ? 2 : 1);
                 return GridView.builder(
+                  addAutomaticKeepAlives: false,
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: cols,
@@ -4237,7 +4382,9 @@ class _ScannerTabState extends State<ScannerTab>
             clipBehavior: Clip.antiAlias,
             child: Stack(fit: StackFit.expand, children: [
               if (image != null)
-                Image.memory(image!, fit: BoxFit.cover)
+                RepaintBoundary(
+                    child: Image.memory(image!,
+                        fit: BoxFit.cover, cacheWidth: 900))
               else
                 Center(
                   child: Icon(Icons.crop_free,

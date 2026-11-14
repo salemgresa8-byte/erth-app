@@ -179,6 +179,10 @@ const _rows = <String, List<String>>{
   'Approved': ['Approvato', 'Approuvé', 'Onaylandı', '已批准', 'Одобрено', '承認済み'],
   'Needs revision': ['Da rivedere', 'À réviser', 'Düzeltme gerekli', '需修改', 'Требует доработки', '要修正'],
   'Archived': ['Archiviato', 'Archivé', 'Arşivlendi', '已归档', 'В архиве', 'アーカイブ済み'],
+  'Photo gallery': ['Galleria fotografica', 'Galerie photos', 'Fotoğraf galerisi', '图片库', 'Фотогалерея', 'フォトギャラリー'],
+  'Historical Origins & Chronology': ['Origini e cronologia storica', 'Origines et chronologie', 'Tarihsel köken ve kronoloji', '历史起源与年表', 'Происхождение и хронология', '歴史的起源と年表'],
+  'Architecture & Engineering': ['Architettura e ingegneria', 'Architecture et ingénierie', 'Mimari ve mühendislik', '建筑与工程', 'Архитектура и инженерия', '建築と工学'],
+  'Cultural & Global Significance': ['Importanza culturale e mondiale', 'Portée culturelle et mondiale', 'Kültürel ve küresel önem', '文化与世界意义', 'Культурное и мировое значение', '文化的・世界的意義'],
   'UNESCO': ['UNESCO', 'UNESCO', 'UNESCO', '联合国教科文组织', 'ЮНЕСКО', 'ユネスコ'],
 };
 

@@ -208,7 +208,8 @@ class AdminOverviewTab extends StatelessWidget {
                             sites.where((x) => x.status == st).length / total,
                         minHeight: 10,
                         color: st.color,
-                        backgroundColor: (gLight ? kGold : Colors.white).withValues(alpha: 0.08),
+                        backgroundColor: (gLight ? kGold : Colors.white)
+                            .withValues(alpha: 0.08),
                       ),
                     ),
                   ),
@@ -343,7 +344,8 @@ class _AdminSitesTabState extends State<AdminSitesTab> {
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child:
-                SizedBox(width: 78, height: 78, child: _NetPhoto(x.image, x)),
+                SizedBox(width: 78, height: 78, child: NetPhoto(smallPhoto(x.image),
+                    cacheWidth: 200, placeholder: (_) => _Illustration(x))),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -714,7 +716,9 @@ class _SiteEditorState extends State<SiteEditor> {
                                 fit: BoxFit.cover,
                                 width: double.infinity,
                                 webHtmlElementStrategy:
-                                    WebHtmlElementStrategy.prefer,
+                                    WebHtmlElementStrategy.fallback,
+                                cacheWidth: 320,
+                                filterQuality: FilterQuality.medium,
                                 errorBuilder: (_, __, ___) => _previewError()),
                           ),
                         )
@@ -763,7 +767,9 @@ class _SiteEditorState extends State<SiteEditor> {
                                   child: Image.network(url,
                                       fit: BoxFit.cover,
                                       webHtmlElementStrategy:
-                                          WebHtmlElementStrategy.prefer,
+                                          WebHtmlElementStrategy.fallback,
+                                      cacheWidth: 320,
+                                      filterQuality: FilterQuality.medium,
                                       errorBuilder: (_, __, ___) =>
                                           _previewError()),
                                 ),
@@ -1158,8 +1164,7 @@ class _AdminContentTabState extends State<AdminContentTab> {
               child: ListTile(
                 leading: CircleAvatar(
                     backgroundColor: kGold.withValues(alpha: 0.15),
-                    child: Text('${i + 1}',
-                        style: TextStyle(color: inkGold))),
+                    child: Text('${i + 1}', style: TextStyle(color: inkGold))),
                 title: Text(s.quiz[i].$1,
                     style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(s.quiz[i].$2.join(' • '),
