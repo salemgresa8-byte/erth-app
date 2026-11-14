@@ -81,19 +81,38 @@
     <div class="bar"><i></i></div>
     <div class="msg">جارٍ تحميل منصة التراث الليبي…</div>
   </div>
-  <script src="flutter_bootstrap.js" async></script>
   <script>
-    // Safety watchdog: remove splash screen after Flutter loads or within 3.5 seconds max
-    function removeSplash() {
-      var splash = document.getElementById('erth-splash');
-      if (splash) {
-        splash.style.transition = 'opacity 0.4s ease';
-        splash.style.opacity = '0';
-        setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 400);
+    // Drop any service worker / caches left by earlier builds: the old Flutter
+    // SW kept serving a stale (broken) bundle, so the app never appeared.
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        }).catch(function () {});
       }
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k); });
+        }).catch(function () {});
+      }
+    } catch (e) {}
+
+    // Splash watchdog: fade out on Flutter's first frame, or after 3s max.
+    var erthSplashGone = false;
+    function removeSplash() {
+      if (erthSplashGone) return;
+      erthSplashGone = true;
+      var splash = document.getElementById('erth-splash');
+      if (!splash) return;
+      splash.style.opacity = '0';
+      splash.style.pointerEvents = 'none';
+      setTimeout(function () {
+        if (splash.parentNode) splash.parentNode.removeChild(splash);
+      }, 400);
     }
     window.addEventListener('flutter-first-frame', removeSplash);
-    setTimeout(removeSplash, 3500);
+    setTimeout(removeSplash, 3000);
   </script>
+  <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

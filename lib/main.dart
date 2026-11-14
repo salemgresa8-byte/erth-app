@@ -16,6 +16,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'pwa/pwa.dart';
 
 part 'admin.dart';
+part 'i18n.dart';
 part 'legal.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,16 +42,27 @@ const _openRouterModels = [
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final state = AppState();
+  // Local prefs (localStorage on web) are near-instant; bound them anyway so
+  // broken or blocked storage can never hold back the first frame.
   try {
-    // Bounded so a slow/unreachable backend can never delay the first frame.
+    await state.loadPrefs().timeout(const Duration(milliseconds: 700));
+  } catch (e) {
+    debugPrint('[ERTH] prefs timed out, using defaults: $e');
+  }
+  runApp(ErthApp(state: state));
+  // The backend connects in the background; every network call already
+  // checks for a missing client and falls back to local data.
+  unawaited(_initBackend());
+}
+
+Future<void> _initBackend() async {
+  try {
     await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseAnonKey)
-        .timeout(const Duration(seconds: 6));
+        .timeout(const Duration(seconds: 8));
   } catch (e) {
     debugPrint('[ERTH] Supabase init failed, running offline: $e');
   }
-  final state = AppState();
-  await state.loadPrefs();
-  runApp(ErthApp(state: state));
 }
 
 // ─────────────────────────────── Palette ────────────────────────────────────
@@ -635,7 +647,8 @@ class ErthLogo extends StatelessWidget {
             ertH,
             if (tagline) ...[
               SizedBox(height: size * 0.12),
-              Text('منصة التراث الليبي', style: captionStyle(14)),
+              Text(tr('منصة التراث الليبي', 'Libyan Heritage Platform'),
+                  style: captionStyle(14)),
             ],
           ]);
     if (onTap == null) return content;
@@ -671,10 +684,10 @@ enum Preservation { good, needsCare, underTreatment, critical }
 
 extension PreservationX on Preservation {
   String label(bool ar) => switch (this) {
-        Preservation.good => ar ? 'حالة جيدة' : 'Good condition',
-        Preservation.needsCare => ar ? 'تحتاج صيانة' : 'Needs care',
-        Preservation.underTreatment => ar ? 'قيد المعالجة' : 'Under treatment',
-        Preservation.critical => ar ? 'تنبيه طارئ' : 'Urgent alert',
+        Preservation.good => ar ? 'حالة جيدة' : L('Good condition'),
+        Preservation.needsCare => ar ? 'تحتاج صيانة' : L('Needs care'),
+        Preservation.underTreatment => ar ? 'قيد المعالجة' : L('Under treatment'),
+        Preservation.critical => ar ? 'تنبيه طارئ' : L('Urgent alert'),
       };
   Color get color => switch (this) {
         Preservation.good => const Color(0xFF4E9A5C),
@@ -1326,10 +1339,10 @@ enum ReviewStatus { pending, approved, needsRevision, archived }
 
 extension ReviewStatusX on ReviewStatus {
   String label(bool ar) => switch (this) {
-        ReviewStatus.pending => ar ? 'بانتظار المراجعة' : 'Pending review',
-        ReviewStatus.approved => ar ? 'معتمد' : 'Approved',
-        ReviewStatus.needsRevision => ar ? 'يحتاج تعديل' : 'Needs revision',
-        ReviewStatus.archived => ar ? 'مؤرشف' : 'Archived',
+        ReviewStatus.pending => ar ? 'بانتظار المراجعة' : L('Pending review'),
+        ReviewStatus.approved => ar ? 'معتمد' : L('Approved'),
+        ReviewStatus.needsRevision => ar ? 'يحتاج تعديل' : L('Needs revision'),
+        ReviewStatus.archived => ar ? 'مؤرشف' : L('Archived'),
       };
   Color get color => switch (this) {
         ReviewStatus.pending => const Color(0xFFC59B27),
@@ -1389,7 +1402,9 @@ class AppState extends ChangeNotifier {
   bool dark = false;
   /// Glossy Beige light theme (persisted as `themeLight`).
   bool light = false;
-  bool ar = true;
+  /// UI language code, one of [kLangCodes].
+  String lang = 'ar';
+  bool get ar => lang == 'ar';
   bool notifications = true;
   bool loggedIn = false;
   bool offline = false;
@@ -1518,7 +1533,9 @@ class AppState extends ChangeNotifier {
     ),
   ];
 
-  String t(String a, String e) => ar ? a : e;
+  /// Arabic, or the English string translated into the current language.
+  String t(String a, String e) =>
+      ar ? a : (lang == 'en' ? e : (kI18n[lang]?[e] ?? e));
 
   SupabaseClient? get _client {
     try {
@@ -1534,7 +1551,11 @@ class AppState extends ChangeNotifier {
       final p = _prefs = await SharedPreferences.getInstance();
       dark = p.getBool('dark') ?? false;
       light = p.getBool('themeLight') ?? false;
-      ar = p.getBool('ar') ?? true;
+      final code = p.getString('lang');
+      lang = kLangCodes.contains(code)
+          ? code!
+          : ((p.getBool('ar') ?? true) ? 'ar' : 'en');
+      gLang = lang;
       notifications = p.getBool('notifications') ?? true;
       loggedIn = p.getBool('loggedIn') ?? false;
       role = UserRole.values.firstWhere((r) => r.name == p.getString('role'),
@@ -1784,6 +1805,7 @@ class AppState extends ChangeNotifier {
       final p = _prefs ??= await SharedPreferences.getInstance();
       await p.setBool('dark', dark);
       await p.setBool('themeLight', light);
+      await p.setString('lang', lang);
       await p.setBool('ar', ar);
       await p.setBool('notifications', notifications);
       await p.setBool('loggedIn', loggedIn);
@@ -1813,10 +1835,30 @@ class AppState extends ChangeNotifier {
     _save();
   }
 
-  void toggleLang() {
-    ar = !ar;
+  void toggleLang() => setLang(ar ? 'en' : 'ar');
+
+  void setLang(String code) {
+    if (!kLangCodes.contains(code) || code == lang) return;
+    lang = code;
+    gLang = code;
     notifyListeners();
     _save();
+  }
+
+  /// Tourist quiz in the current language. Admin-edited questions (no longer
+  /// matching the default) are shown exactly as the admin wrote them.
+  List<(String, List<String>)> get localizedQuiz {
+    final tq = kQuizI18n[lang];
+    if (ar || tq == null) return quiz;
+    return [
+      for (var i = 0; i < quiz.length; i++)
+        (i < kQuiz.length &&
+                i < tq.length &&
+                quiz[i].$1 == kQuiz[i].$1 &&
+                quiz[i].$2.join('|') == kQuiz[i].$2.join('|'))
+            ? tq[i]
+            : quiz[i],
+    ];
   }
 
   void setNotifications(bool v) {
@@ -2210,6 +2252,7 @@ class _ErthAppState extends State<ErthApp> {
       listenable: state,
       builder: (context, _) {
         gLight = state.light;
+        gLang = state.lang;
         return MaterialApp(
         navigatorKey: _navKey,
         title: 'إرث | ERTH',
@@ -2218,7 +2261,7 @@ class _ErthAppState extends State<ErthApp> {
         themeMode: ThemeMode.light,
         builder: (context, child) => Directionality(
           textDirection: state.ar ? TextDirection.rtl : TextDirection.ltr,
-          child: HeritageBackdrop(child: child!),
+          child: HeritageBackdrop(child: child ?? const SizedBox.shrink()),
         ),
         home: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -2289,21 +2332,7 @@ List<Widget> topControls(BuildContext context, AppState s,
 }
 
 List<Widget> _langTheme(AppState s) => [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: OutlinedButton(
-          style: OutlinedButton.styleFrom(
-            shape: const StadiumBorder(),
-            side: BorderSide(color: kGold.withValues(alpha: 0.5)),
-            minimumSize: const Size(52, 34),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-          ),
-          onPressed: s.toggleLang,
-          child: Text(s.ar ? 'EN' : 'AR',
-              style: GoogleFonts.tajawal(
-                  fontWeight: FontWeight.w700, color: inkBody)),
-        ),
-      ),
+      LanguagePill(state: s),
       ThemeToggle(state: s),
     ];
 
@@ -3200,7 +3229,7 @@ class _SiteCardState extends State<SiteCard> {
                       PositionedDirectional(
                         top: 10,
                         end: 10,
-                        child: Pill.unesco(ar ? 'اليونسكو' : 'UNESCO'),
+                        child: Pill.unesco(ar ? 'اليونسكو' : L('UNESCO')),
                       ),
                   ]),
                 ),
@@ -3300,7 +3329,7 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
             if (s.unesco && state.isExpertRole)
               Chip(
                   avatar: Icon(Icons.public, size: 16, color: p.accent),
-                  label: Text(ar ? 'تراث عالمي - اليونسكو' : 'UNESCO World Heritage')),
+                  label: Text(ar ? 'تراث عالمي - اليونسكو' : L('UNESCO World Heritage'))),
             Chip(
                 avatar: Icon(Icons.my_location, size: 16, color: p.accent),
                 label: Text(
@@ -3694,8 +3723,9 @@ class HomeTab extends StatelessWidget {
         FilledButton.tonalIcon(
           onPressed: () => s.setTab(1),
           icon: const Icon(Icons.search),
-          label: Text(s.t('استعرض جميع المواقع الـ ${s.sites.length}',
-              'Browse all ${s.sites.length} sites')),
+          label: Text(s
+              .t('استعرض جميع المواقع الـ {n}', 'Browse all {n} sites')
+              .replaceAll('{n}', '${s.sites.length}')),
         ),
         const SizedBox(height: 90),
       ],
@@ -3729,10 +3759,11 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
-    final quiz = widget.state.quiz;
+    final s = widget.state;
+    final quiz = s.localizedQuiz;
     final item = quiz[q];
     const letters = ['A', 'B', 'C', 'D'];
-    const marks = ['أ', 'ب', 'ج', 'د'];
+    final marks = s.ar ? const ['أ', 'ب', 'ج', 'د'] : letters;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -3751,17 +3782,21 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
           Icon(Icons.quiz, color: p.accent),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('استبيان الاهتمامات الأثرية',
+            child: Text(s.t('استبيان الاهتمامات الأثرية', 'Heritage interests quiz'),
                 style: TextStyle(
                     fontSize: 18, fontWeight: FontWeight.w800, color: inkGold)),
           ),
           if (widget.state.retakingQuiz)
             TextButton(
-                onPressed: widget.state.cancelQuiz, child: const Text('إلغاء')),
+                onPressed: s.cancelQuiz, child: Text(s.t('إلغاء', 'Cancel'))),
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Text('السؤال ${q + 1} من ${quiz.length}',
+          Text(
+              s
+                  .t('السؤال {q} من {n}', 'Question {q} of {n}')
+                  .replaceAll('{q}', '${q + 1}')
+                  .replaceAll('{n}', '${quiz.length}'),
               style: TextStyle(color: p.text2, fontSize: 12)),
           const SizedBox(width: 12),
           Expanded(
@@ -3789,7 +3824,8 @@ class _HeritageQuizCardState extends State<HeritageQuizCard> {
             key: ValueKey(q),
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('س${q + 1}: ${item.$1}',
+              Text(
+                  '${s.t('س{q}', 'Q{q}').replaceAll('{q}', '${q + 1}')}: ${item.$1}',
                   style: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w800, height: 1.5)),
               const SizedBox(height: 12),
@@ -3861,25 +3897,26 @@ class _Recommendations extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('شخصيتك الأثرية: ${per.nameAr}',
+              Text(
+                  '${state.t('شخصيتك الأثرية: ', 'Your heritage persona: ')}${personaName(state.persona)}',
                   style: const TextStyle(fontWeight: FontWeight.w800)),
               TextButton.icon(
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
                 onPressed: state.resetQuiz,
                 icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('إعادة تحديد اهتماماتي'),
+                label: Text(state.t('إعادة تحديد اهتماماتي', 'Retake my interests')),
               ),
             ]),
           ),
         ]),
       ),
       const SizedBox(height: 16),
-      Text('موصى به لك',
+      Text(state.t('موصى به لك', 'Recommended for You'),
           style: TextStyle(
               fontSize: 12, fontWeight: FontWeight.w700, color: p.accent)),
       const SizedBox(height: 2),
-      Text(per.titleAr,
+      Text(personaTitle(state.persona),
           style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
       const SizedBox(height: 12),
       SizedBox(
@@ -4453,7 +4490,8 @@ class LogsTab extends StatelessWidget {
         children: [
           Text(s.t('سجل الترميم', 'Restoration log'), style: titleStyle(24)),
           const SizedBox(height: 4),
-          Text(s.t('${s.logs.length} تقرير فني', '${s.logs.length} technical reports'),
+          Text(s.t('{n} تقرير فني', '{n} technical reports')
+                  .replaceAll('{n}', '${s.logs.length}'),
               style: captionStyle(13)),
           const SizedBox(height: 16),
           if (s.offline) _OfflineBanner(s),
@@ -4847,13 +4885,16 @@ class _AccountTabState extends State<AccountTab> {
               Expanded(
                 child: Text(
                     s.quizDone
-                        ? kPersonas[s.persona]!.nameAr
-                        : 'لم تُجرِ الاستبيان بعد',
+                        ? personaName(s.persona)
+                        : s.t('لم تُجرِ الاستبيان بعد',
+                            'You have not taken the quiz yet'),
                     style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
               OutlinedButton(
                 onPressed: s.resetQuiz,
-                child: Text(s.quizDone ? 'إعادة تحديد اهتماماتي' : 'ابدأ الاستبيان'),
+                child: Text(s.quizDone
+                    ? s.t('إعادة تحديد اهتماماتي', 'Retake my interests')
+                    : s.t('ابدأ الاستبيان', 'Start the quiz')),
               ),
             ]),
           ),
@@ -4882,11 +4923,12 @@ class _AccountTabState extends State<AccountTab> {
               title: Text(s.t('الوضع النهاري (البيج اللامع)',
                   'Light mode (glossy beige)')),
             ),
-            SwitchListTile(
-              value: s.ar,
-              onChanged: (_) => s.toggleLang(),
-              secondary: const Icon(Icons.translate),
-              title: Text(s.t('اللغة العربية', 'Arabic language')),
+            ListTile(
+              leading: const Icon(Icons.language),
+              title: Text(s.t('اللغات', 'Languages')),
+              subtitle: Text(langNative(s.lang)),
+              trailing: const Icon(Icons.expand_more),
+              onTap: () => showLanguagePicker(context, s),
             ),
           ]),
           ),
@@ -5072,7 +5114,7 @@ class _ChatSheetState extends State<ChatSheet> {
   Future<_Msg> _ask(String q) async {
     final system = s.ar
         ? 'أنت «المرشد الأثري الذكي» في تطبيق إرث. أنت خبير في علم الآثار الليبي (لبدة الكبرى، قورينا، صبراتة، أكاكوس، غدامس، وغيرها) وفي كيمياء الترميم والصيانة (بارالويد B-72، الجير النانوي، سيليكات الإيثيل، الشمع دقيق التبلور، إزالة الأملاح). أجب بالعربية بإيجاز ودقة، وصرّح عندما لا تكون متأكدًا.'
-        : 'You are the “AI Heritage Guide” in the ERTH app. You are an expert in Libyan archaeology (Leptis Magna, Cyrene, Sabratha, Acacus, Ghadames and more) and conservation chemistry (Paraloid B-72, nano-lime, ethyl silicate, micro-crystalline wax, desalination). Answer concisely and accurately, and say when you are unsure.';
+        : 'You are the “AI Heritage Guide” in the ERTH app. You are an expert in Libyan archaeology (Leptis Magna, Cyrene, Sabratha, Acacus, Ghadames and more) and conservation chemistry (Paraloid B-72, nano-lime, ethyl silicate, micro-crystalline wax, desalination). Answer concisely and accurately, and say when you are unsure. Always reply in ${langNative(s.lang)}.';
     final history = msgs
         .where((m) => m != msgs.first)
         .toList()
