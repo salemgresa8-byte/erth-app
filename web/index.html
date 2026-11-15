@@ -59,13 +59,118 @@
       return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     };
-    // ── Guide voice: silent stub, ready for ElevenLabs ──
-    // erthSpeak returns false (nothing played) until a real voice backend is
-    // plugged in; it should then return true and keep erthIsSpeaking() true
-    // while audio plays so the talking bust and gold waveform animate.
-    window.erthSpeak = function (text, lang, persona) { return false; };
-    window.erthStopAudio = function () {};
-    window.erthIsSpeaking = function () { return false; };
+    // ── Guide voice: ElevenLabs (eleven_multilingual_v2) ──
+    // NOTE: this key is public in the page source by the owner's choice;
+    // restrict it in ElevenLabs (TTS only + character quota).
+    (function () {
+      var XI_KEY = "sk_fa20b1cef3d0ac4f63c5ebab155c3f2d75da6fbc18f7c944";
+      var VOICES = { severus: "pNInz6obpgDQGcFmaJgB", medusa: "21m00Tcm4TlvDq8ikWAM" };
+      var WELCOME_AR = {
+        severus: { file: "audio/severus_welcome_ar.mp3", text: "أهلاً بك في رحاب إرث. أنا الإمبراطور سيبتيموس سيفيروس، ابن لبدة الكبرى. سلني عما شئت من أسرار العمارة وتاريخ الحضارات الليبية." },
+        medusa: { file: "audio/medusa_welcome_ar.mp3", text: "مرحباً بك في عالم الجمال والتاريخ. أنا ميدوسا، حارسة الفنون وأسرار لبدة وقورينا. دعنا نستكشف معاً روائع الفسيفساء والآثار الخالدة." }
+      };
+      var SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+      var audio = window.__erthAudio = new Audio();
+      audio.preload = "auto";
+      audio.setAttribute("playsinline", "");
+      window.__erthPlaying = false;
+      window.__erthAudioCache = window.__erthAudioCache || {};
+      var abort = null, token = 0, unlocked = false;
+
+      // iOS Safari / Android Chrome: the element must first play inside a
+      // user gesture; afterwards it may play later (e.g. when a reply arrives).
+      function unlock() {
+        if (unlocked) return;
+        unlocked = true;
+        try {
+          audio.muted = true;
+          audio.src = SILENT;
+          var p = audio.play();
+          var done = function () { audio.muted = false; };
+          if (p && p.then) p.then(done, function () { done(); unlocked = false; }); else done();
+        } catch (e) { unlocked = false; }
+      }
+      ["pointerdown", "touchstart", "touchend", "click"].forEach(function (ev) {
+        document.addEventListener(ev, unlock, true);
+      });
+
+      function clean(text) {
+        var s = String(text || "");
+        try { s = s.replace(/\p{Extended_Pictographic}|️|‍/gu, " "); } catch (e) {}
+        return s
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/https?:\/\/\S+/g, " ")
+          .replace(/^\s*(?:[-*+•▪●◦]|\d+[.)])\s+/gm, "")
+          .replace(/[*#_`~>|\[\]{}]+/g, " ")
+          .replace(/\s+[-–—]\s+/g, "، ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      function stopped(tok) { if (tok === token) window.__erthPlaying = false; }
+
+      function play(url, tok) {
+        if (tok !== token) return;
+        audio.onended = function () { stopped(tok); };
+        audio.onerror = function () { stopped(tok); };
+        audio.muted = false;
+        audio.src = url;
+        var p = audio.play();
+        if (p && p.catch) p.catch(function () { stopped(tok); });
+      }
+
+      window.erthStopAudio = function () {
+        token++;
+        window.__erthPlaying = false;
+        if (abort) { try { abort.abort(); } catch (e) {} abort = null; }
+        try { audio.onended = null; audio.onerror = null; audio.pause(); } catch (e) {}
+      };
+      window.erthIsSpeaking = function () { return window.__erthPlaying; };
+
+      // Returns true when playback (or the fetch for it) has started.
+      window.erthSpeak = function (text, lang, persona) {
+        unlock();
+        window.erthStopAudio();
+        var tok = token;
+        persona = VOICES[persona] ? persona : "severus";
+        lang = String(lang || "ar").slice(0, 2).toLowerCase();
+        var s = clean(text);
+        if (!s) return false;
+        window.__erthPlaying = true;
+
+        // 0 ms: pre-generated Arabic welcome.
+        var w = WELCOME_AR[persona];
+        if (lang === "ar" && s === clean(w.text)) { play(w.file, tok); return true; }
+
+        var key = persona + ":" + lang + ":" + s;
+        var cached = window.__erthAudioCache[key];
+        if (cached) { play(cached, tok); return true; }
+
+        abort = typeof AbortController !== "undefined" ? new AbortController() : null;
+        fetch("https://api.elevenlabs.io/v1/text-to-speech/" + VOICES[persona] +
+          "/stream?optimize_streaming_latency=3&output_format=mp3_44100_128", {
+          method: "POST",
+          headers: { "xi-api-key": XI_KEY, "Content-Type": "application/json", "Accept": "audio/mpeg" },
+          body: JSON.stringify({
+            text: s.slice(0, 2500),
+            model_id: "eleven_multilingual_v2",
+            voice_settings: { stability: 0.62, similarity_boost: 0.82 }
+          }),
+          signal: abort ? abort.signal : undefined
+        }).then(function (r) {
+          if (!r.ok) throw new Error("ElevenLabs HTTP " + r.status);
+          return r.blob();
+        }).then(function (blob) {
+          var url = URL.createObjectURL(blob);
+          window.__erthAudioCache[key] = url;
+          play(url, tok);
+        }).catch(function (e) {
+          if (!(e && e.name === "AbortError")) console.warn("[ERTH] voice failed:", e);
+          stopped(tok);
+        });
+        return true;
+      };
+    })();
     window.erthInstall = async function () {
       if (!window.deferredPrompt) return "unavailable";
       window.deferredPrompt.prompt();

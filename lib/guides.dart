@@ -33,10 +33,12 @@ class GuideProfile {
       ? s.t('تحدث مع سيفيروس', 'Talk with Severus')
       : s.t('تحدث مع ميدوسا', 'Talk with Medusa');
 
+  // Arabic greetings match web/audio/*_welcome_ar.mp3 word for word, so
+  // erthSpeak plays the pre-generated file instantly.
   String greeting(AppState s) => id == GuideId.severus
-      ? s.t('سلامٌ عليك أيها الرحّالة! أنا سيبتيموس سيفيروس، ابن لبدة الكبرى وإمبراطور روما. سلني عن الأقواس والمسارح والحصون والخطط التي صنعت مجد ليبيا.',
+      ? s.t('أهلاً بك في رحاب إرث. أنا الإمبراطور سيبتيموس سيفيروس، ابن لبدة الكبرى. سلني عما شئت من أسرار العمارة وتاريخ الحضارات الليبية.',
           'Salve, traveller! I am Septimius Severus, son of Leptis Magna and emperor of Rome. Ask me about the arches, theatres, forts and strategies that shaped Libya.')
-      : s.t('أهلًا بك يا باحثًا عن الجمال. أنا ميدوسا، حارسة الفوروم السيفيري في لبدة الكبرى. سلني عن الفسيفساء والمنحوتات والفلسفة القورينائية وأسرار الواحات.',
+      : s.t('مرحباً بك في عالم الجمال والتاريخ. أنا ميدوسا، حارسة الفنون وأسرار لبدة وقورينا. دعنا نستكشف معاً روائع الفسيفساء والآثار الخالدة.',
           'Welcome, seeker of beauty. I am Medusa, guardian of the Severan Forum of Leptis Magna. Ask me about mosaics, sculpture, Cyrenaic philosophy and the secrets of the oases.');
 
   String speaking(AppState s) => id == GuideId.severus
