@@ -9,3 +9,4 @@ bool ttsIsSpeaking() => false;
 bool ttsSpeak(String text, {required String lang, required String persona}) =>
     false;
 void ttsStop() {}
+void ttsPreload() {}

@@ -127,6 +127,24 @@
       };
       window.erthIsSpeaking = function () { return window.__erthPlaying; };
 
+      // Fetch both welcome MP3s into memory once (when the guide picker
+      // opens, during idle time) so the first tap plays with no network wait
+      // and no main-thread work. Decoding happens in the browser's media
+      // pipeline, off the Flutter UI thread.
+      var welcomeBlobs = {}, preloading = false;
+      window.erthPreloadVoices = function () {
+        if (preloading) return;
+        preloading = true;
+        var go = function () {
+          Object.keys(WELCOME_AR).forEach(function (k) {
+            fetch(WELCOME_AR[k].file).then(function (r) { return r.ok ? r.blob() : null; })
+              .then(function (b) { if (b) welcomeBlobs[k] = URL.createObjectURL(b); })
+              .catch(function () {});
+          });
+        };
+        if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 1500 }); else setTimeout(go, 200);
+      };
+
       // Returns true when playback (or the fetch for it) has started.
       window.erthSpeak = function (text, lang, persona) {
         unlock();
@@ -140,7 +158,7 @@
 
         // 0 ms: pre-generated Arabic welcome.
         var w = WELCOME_AR[persona];
-        if (lang === "ar" && s === clean(w.text)) { play(w.file, tok); return true; }
+        if (lang === "ar" && s === clean(w.text)) { play(welcomeBlobs[persona] || w.file, tok); return true; }
 
         var key = persona + ":" + lang + ":" + s;
         var cached = window.__erthAudioCache[key];

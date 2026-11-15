@@ -511,13 +511,48 @@ class GuideBust extends StatefulWidget {
   State<GuideBust> createState() => _GuideBustState();
 }
 
-class _GuideBustState extends State<GuideBust> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 4800))
-        ..repeat();
+class _GuideBustState extends State<GuideBust> {
+  // Animation phase 0..1 over a 4.8s cycle. It advances only while the guide
+  // is thinking/speaking, and at ~30fps rather than every vsync: plenty for a
+  // breathing, talking bust, at half the repaint cost on phones. Idle busts
+  // (picker cards, a quiet stage) paint one still frame and cost nothing.
+  static const _cycleMs = 4800;
+  final _c = ValueNotifier<double>(0);
+  final _clock = Stopwatch();
+  Timer? _timer;
+
+  void _start() {
+    if (_timer != null) return;
+    _clock
+      ..reset()
+      ..start();
+    _timer = Timer.periodic(const Duration(milliseconds: 33), (_) {
+      _c.value = (_clock.elapsedMilliseconds % _cycleMs) / _cycleMs;
+    });
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+    _clock.stop();
+    _c.value = 0; // settle on the neutral (closed-mouth) frame
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.active) _start();
+  }
+
+  @override
+  void didUpdateWidget(GuideBust old) {
+    super.didUpdateWidget(old);
+    widget.active ? _start() : _stop();
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _c.dispose();
     super.dispose();
   }
@@ -553,17 +588,13 @@ class _GuideBustState extends State<GuideBust> with SingleTickerProviderStateMix
                 height: sz,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
+                  // Glow is a plain radial gradient: an animated blurred
+                  // BoxShadow here was re-blurred every frame while speaking.
                   gradient: RadialGradient(colors: [
-                    kGoldLight.withValues(alpha: 0.30 * glow),
-                    kGold.withValues(alpha: 0.10 * glow),
+                    kGoldLight.withValues(alpha: 0.42 * glow),
+                    kGold.withValues(alpha: 0.18 * glow),
                     Colors.transparent,
-                  ], stops: const [0.55, 0.8, 1]),
-                  boxShadow: [
-                    BoxShadow(
-                        color: kGold.withValues(alpha: 0.45 * glow),
-                        blurRadius: sz * 0.16,
-                        spreadRadius: a ? sz * 0.02 : 0),
-                  ],
+                  ], stops: const [0.5, 0.78, 1]),
                 ),
               ),
               // Medallion with the bust.

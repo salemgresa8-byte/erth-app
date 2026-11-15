@@ -10,6 +10,8 @@ external bool _isIOS();
 external bool _speak(String text, String lang, String persona);
 @JS('erthStopAudio')
 external void _stopAudio();
+@JS('erthPreloadVoices')
+external void _preloadVoices();
 @JS('erthIsSpeaking')
 external bool _isSpeaking();
 @JS('erthInstall')
@@ -47,5 +49,12 @@ bool ttsSpeak(String text, {required String lang, required String persona}) =>
 void ttsStop() {
   try {
     _stopAudio();
+  } catch (_) {}
+}
+
+/// Warms the welcome MP3s into memory (idle time) before the first tap.
+void ttsPreload() {
+  try {
+    _preloadVoices();
   } catch (_) {}
 }

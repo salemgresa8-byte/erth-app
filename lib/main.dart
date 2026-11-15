@@ -345,9 +345,9 @@ class GoldButton extends StatelessWidget {
           border: red ? Border.all(color: kGold.withValues(alpha: 0.6)) : null,
           boxShadow: [
             BoxShadow(
-                color: (red ? kRed : kGold).withValues(alpha: 0.25),
-                blurRadius: 16,
-                offset: const Offset(0, 6)),
+                color: (red ? kRed : kGold).withValues(alpha: 0.22),
+                blurRadius: 8,
+                offset: const Offset(0, 4)),
           ],
         ),
         child: Material(
@@ -3237,12 +3237,16 @@ class _SiteCardState extends State<SiteCard> {
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
                   color: kGold.withValues(alpha: hover ? 0.55 : 0.3)),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: hover ? 0.22 : 0.08),
-                    blurRadius: hover ? 22 : 10,
-                    offset: const Offset(0, 6)),
-              ],
+              // No blurred shadow at rest: it was repainted for every card
+              // while scrolling on phones. Hover (desktop only) keeps it.
+              boxShadow: hover
+                  ? [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.22),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6)),
+                    ]
+                  : null,
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -3873,24 +3877,25 @@ class HomeTab extends StatelessWidget {
         const SizedBox(height: 12),
         SizedBox(
           height: 300,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            addAutomaticKeepAlives: false,
-            children: [
-              for (final x in (isExpert
-                  ? s.sites.where((x) =>
-                      x.status == Preservation.critical ||
-                      x.status == Preservation.underTreatment)
-                  : s.sites.where((x) => x.unesco)))
-                SizedBox(
-                  width: 270,
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 14),
-                    child: SiteCard(site: x, state: s, scope: 'f'),
-                  ),
-                ),
-            ],
-          ),
+          child: Builder(builder: (context) {
+            final featured = (isExpert
+                    ? s.sites.where((x) =>
+                        x.status == Preservation.critical ||
+                        x.status == Preservation.underTreatment)
+                    : s.sites.where((x) => x.unesco))
+                .toList();
+            // Lazy: cards (and their photos) build only when scrolled in.
+            return ListView.builder(
+              scrollDirection: Axis.horizontal,
+              addAutomaticKeepAlives: false,
+              itemExtent: 270,
+              itemCount: featured.length,
+              itemBuilder: (_, i) => Padding(
+                padding: const EdgeInsetsDirectional.only(end: 14),
+                child: SiteCard(site: featured[i], state: s, scope: 'f'),
+              ),
+            );
+          }),
         ),
         const SizedBox(height: 14),
         FilledButton.tonalIcon(
@@ -4094,19 +4099,15 @@ class _Recommendations extends StatelessWidget {
       const SizedBox(height: 12),
       SizedBox(
         height: 300,
-        child: ListView(
+        child: ListView.builder(
           scrollDirection: Axis.horizontal,
           addAutomaticKeepAlives: false,
-          children: [
-            for (final x in sites)
-              SizedBox(
-                width: 270,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 14),
-                  child: SiteCard(site: x, state: state, scope: 'r'),
-                ),
-              ),
-          ],
+          itemExtent: 270,
+          itemCount: sites.length,
+          itemBuilder: (_, i) => Padding(
+            padding: const EdgeInsetsDirectional.only(end: 14),
+            child: SiteCard(site: sites[i], state: state, scope: 'r'),
+          ),
         ),
       ),
     ]);
@@ -5258,6 +5259,7 @@ class _ChatSheetState extends State<ChatSheet> {
   void initState() {
     super.initState();
     _pendingInitial = widget.initial;
+    ttsPreload(); // picker is showing: warm the welcome voices now
   }
 
   @override

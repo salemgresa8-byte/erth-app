@@ -49,14 +49,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.1"
-  bloc:
-    dependency: transitive
-    description:
-      name: bloc
-      sha256: e03b235924e4f509c27b5d6b2f949200e0a91149a9818b4f65eeb56662b75413
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.2.1"
   boolean_selector:
     dependency: transitive
     description:
@@ -190,14 +182,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_bloc:
-    dependency: "direct main"
-    description:
-      name: flutter_bloc
-      sha256: cf51747952201a455a1c840f8171d273be009b932c75093020f9af64f2123e38
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.1.1"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -232,14 +216,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.7.1"
-  go_router:
-    dependency: "direct main"
-    description:
-      name: go_router
-      sha256: f02fd7d2a4dc512fec615529824fdd217fecb3a3d3de68360293a551f21634b3
-      url: "https://pub.dev"
-    source: hosted
-    version: "14.8.1"
   google_fonts:
     dependency: "direct main"
     description:
@@ -448,22 +424,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
-  mobile_scanner:
-    dependency: "direct main"
-    description:
-      name: mobile_scanner
-      sha256: "0b466a0a8a211b366c2e87f3345715faef9b6011c7147556ad22f37de6ba3173"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.11"
-  nested:
-    dependency: transitive
-    description:
-      name: nested
-      sha256: "03bac4c528c64c95c722ec99280375a6f2fc708eec17c7b3f07253b626cd2a20"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   objective_c:
     dependency: transitive
     description:
@@ -576,14 +536,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.9.1"
-  provider:
-    dependency: transitive
-    description:
-      name: provider
-      sha256: "4e82183fa20e5ca25703ead7e05de9e4cceed1fbd1eadc1ac3cb6f565a09f272"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.1.5+1"
   pub_semver:
     dependency: transitive
     description:
