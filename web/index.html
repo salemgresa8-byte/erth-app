@@ -18,6 +18,9 @@
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
+  <!-- No Referer on outgoing requests: the cloud TTS fallback (Google
+       translate_tts) answers 404 when a third-party Referer is sent. -->
+  <meta name="referrer" content="no-referrer">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="إرث - ERTH | منصة التراث الليبي">
 
@@ -59,54 +62,225 @@
       return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     };
-    // ── Live voice (Web Speech TTS) for the historical AI guides ──
-    // Long texts are queued in sentence chunks: Chrome silently stops a
-    // single utterance after ~15s.
-    window.erthTtsSupported = function () {
-      return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
-    };
-    if (window.erthTtsSupported()) {
-      try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); }; } catch (e) {}
-    }
-    window.erthStopSpeak = function () { try { speechSynthesis.cancel(); } catch (e) {} };
-    window.erthIsSpeaking = function () {
-      try { return !!(speechSynthesis.speaking || speechSynthesis.pending); } catch (e) { return false; }
-    };
-    window.erthSpeak = function (text, lang, pitch, rate, male) {
-      if (!window.erthTtsSupported()) return false;
-      try {
-        var ss = window.speechSynthesis;
-        ss.cancel();
-        var base = (lang || "en").slice(0, 2).toLowerCase();
-        var voices = ss.getVoices().filter(function (v) {
+    // ── Live voice for the historical AI guides: 3-layer engine ──
+    // A) native Web Speech  →  B) cloud TTS <audio> stream  →  C) Web Audio
+    // chime feedback. Mobile browsers only allow audio that starts inside a
+    // user gesture, so everything is unlocked on the first tap and the
+    // same <audio> element / AudioContext / speechSynthesis are reused.
+    (function () {
+      var hasSS = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+      var SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+      var BCP = { ar: "ar-SA", en: "en-GB", it: "it-IT", fr: "fr-FR", tr: "tr-TR", zh: "zh-CN", ru: "ru-RU", ja: "ja-JP" };
+      var GTL = { zh: "zh-CN" };
+      var PERSONA = {
+        severus: { pitch: 0.85, rate: 0.95, cloudRate: 0.92, male: true },
+        medusa: { pitch: 1.15, rate: 0.95, cloudRate: 1.04, male: false }
+      };
+      var audio = null, ctx = null, unlocked = false;
+      var state = { active: false, token: 0 };
+      var voices = [];
+
+      function loadVoices() { try { voices = hasSS ? speechSynthesis.getVoices() || [] : []; } catch (e) { voices = []; } }
+      if (hasSS) {
+        loadVoices();
+        try { speechSynthesis.addEventListener("voiceschanged", loadVoices); } catch (e) { speechSynthesis.onvoiceschanged = loadVoices; }
+      }
+
+      // Must run synchronously inside a tap. Safe to call repeatedly.
+      function unlock() {
+        try {
+          if (!audio) {
+            audio = new Audio();
+            audio.preload = "auto";
+            audio.setAttribute("playsinline", "");
+          }
+          if (!unlocked) {
+            audio.src = SILENT;
+            var p = audio.play();
+            if (p && p.catch) p.catch(function () {});
+          }
+        } catch (e) {}
+        try {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (AC && !ctx) ctx = new AC();
+          if (ctx && ctx.state === "suspended") ctx.resume();
+        } catch (e) {}
+        try {
+          if (hasSS && !unlocked) {
+            var u = new SpeechSynthesisUtterance("");
+            u.volume = 0;
+            speechSynthesis.speak(u);
+          }
+        } catch (e) {}
+        unlocked = true;
+      }
+      window.erthUnlockAudio = unlock;
+      // Belt and braces: unlock on the very first touch anywhere on the page.
+      ["pointerdown", "touchend", "click", "keydown"].forEach(function (ev) {
+        document.addEventListener(ev, function once() {
+          unlock();
+          document.removeEventListener(ev, once, true);
+        }, true);
+      });
+
+      // ── Layer C: Web Audio lyre chord and "speech starting" cue ──
+      function pluck(freq, at, dur, gain, type) {
+        if (!ctx) return;
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type || "triangle";
+        o.frequency.setValueAtTime(freq, at);
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(gain, at + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(at); o.stop(at + dur + 0.05);
+      }
+      window.erthChime = function (persona) {
+        try {
+          unlock();
+          if (!ctx) return;
+          var t = ctx.currentTime + 0.02;
+          // Severus: D major lyre; Medusa: A major, an octave-bright voicing.
+          var notes = persona === "medusa" ? [440, 554.37, 659.25, 880] : [146.83, 220, 293.66, 369.99];
+          notes.forEach(function (f, i) {
+            pluck(f, t + i * 0.085, 1.8, 0.09, "triangle");
+            pluck(f * 2, t + i * 0.085, 0.9, 0.025, "sine");
+          });
+        } catch (e) {}
+      };
+      function cue(persona) {
+        try {
+          if (!ctx) return;
+          var t = ctx.currentTime + 0.01;
+          var base = persona === "medusa" ? 659.25 : 293.66;
+          pluck(base, t, 0.35, 0.05, "sine");
+          pluck(base * 1.5, t + 0.07, 0.4, 0.04, "sine");
+        } catch (e) {}
+      }
+
+      function clean(text) {
+        var s = String(text || "");
+        try { s = s.replace(/\p{Extended_Pictographic}|️|‍/gu, " "); } catch (e) {}
+        return s
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/https?:\/\/\S+/g, " ")
+          .replace(/^\s*(?:[-*+•▪●◦]|\d+[.)])\s+/gm, "")
+          .replace(/[*#_`~>|\[\]{}]+/g, " ")
+          .replace(/\s+-\s+|\s+–\s+/g, "، ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+      function chunks(s, max) {
+        var parts = s.match(/[^.!?؟。！？،,;؛]+[.!?؟。！？،,;؛]*/g) || [s];
+        var out = [], cur = "";
+        parts.forEach(function (p) {
+          p = p.trim();
+          if (!p) return;
+          while (p.length > max) { // split long sentences on spaces
+            var cut = p.lastIndexOf(" ", max);
+            if (cut < max * 0.5) cut = max;
+            if (cur) { out.push(cur); cur = ""; }
+            out.push(p.slice(0, cut).trim());
+            p = p.slice(cut).trim();
+          }
+          if ((cur + " " + p).trim().length > max) { if (cur) out.push(cur); cur = p; }
+          else cur = (cur + " " + p).trim();
+        });
+        if (cur) out.push(cur);
+        return out;
+      }
+      function voiceFor(lang, male) {
+        if (!voices.length) loadVoices();
+        var base = lang.slice(0, 2).toLowerCase();
+        var list = voices.filter(function (v) {
           return v.lang && v.lang.replace("_", "-").toLowerCase().indexOf(base) === 0;
         });
-        var maleRx = /\bmale\b|\bman\b|david|daniel|george|james|mark|maged|tarik|naayf|hamed|shakir|luca|diego|cosimo|paul|henri|ahmet|yunyang|kangkang|pavel|dmitry|ichiro|keita/i;
-        var femRx = /female|woman|zira|samantha|karen|susan|hazel|hoda|laila|salma|zariyah|amira|elsa|alice|isabella|julie|amelie|denise|filiz|emel|huihui|xiaoxiao|tingting|irina|svetlana|milena|kyoko|haruka|nanami|ayumi/i;
-        var pick = null;
-        for (var i = 0; i < voices.length && !pick; i++) {
-          var n = voices[i].name || "";
-          if (male ? (maleRx.test(n) && !/female/i.test(n)) : femRx.test(n)) pick = voices[i];
+        if (!list.length) return null;
+        var maleRx = /\bmale\b|\bman\b|david|daniel|george|james|mark|maged|tarik|naayf|hamed|shakir|luca|diego|cosimo|paul|henri|thomas|ahmet|yunyang|kangkang|pavel|dmitry|yuri|ichiro|keita|otoya/i;
+        var femRx = /female|woman|zira|samantha|karen|susan|hazel|hoda|laila|salma|zariyah|amira|mariam|elsa|alice|isabella|julie|amelie|denise|filiz|emel|huihui|xiaoxiao|tingting|irina|svetlana|milena|kyoko|haruka|nanami|ayumi/i;
+        for (var i = 0; i < list.length; i++) {
+          var n = list[i].name || "";
+          if (male ? (maleRx.test(n) && !/female/i.test(n)) : femRx.test(n)) return list[i];
         }
-        if (!pick && voices.length) pick = voices[0];
-        var clean = String(text).replace(/[*#_`>|]+/g, " ").replace(/\s+/g, " ").trim();
-        var parts = clean.match(/[^.!?؟。！？\n]+[.!?؟。！？]*/g) || [clean];
-        var chunk = "";
-        var chunks = [];
-        parts.forEach(function (p) {
-          if ((chunk + p).length > 180 && chunk) { chunks.push(chunk); chunk = ""; }
-          chunk += p;
+        return list[0];
+      }
+      function finish(tok) { if (tok === state.token) state.active = false; }
+
+      // ── Layer B: cloud TTS audio stream, chunk by chunk ──
+      function speakCloud(parts, lang, p, tok) {
+        if (!audio) { finish(tok); return; }
+        var tl = GTL[lang] || lang;
+        var i = 0;
+        function next() {
+          if (tok !== state.token) return;
+          if (i >= parts.length) { finish(tok); return; }
+          var q = parts[i++];
+          audio.onended = next;
+          audio.onerror = function () { next(); };
+          audio.src = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=" +
+            encodeURIComponent(tl) + "&q=" + encodeURIComponent(q);
+          audio.playbackRate = p.cloudRate;
+          try { audio.preservesPitch = false; audio.webkitPreservesPitch = false; } catch (e) {}
+          var pr = audio.play();
+          if (pr && pr.catch) pr.catch(function () { finish(tok); });
+        }
+        next();
+      }
+
+      // ── Layer A: native Web Speech, with a 600ms start watchdog ──
+      function speakNative(parts, lang, p, voice, tok) {
+        var started = false;
+        var bcp = voice ? voice.lang : (BCP[lang] || lang);
+        try { if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); } catch (e) {}
+        try { speechSynthesis.resume(); } catch (e) {}
+        parts.forEach(function (c, idx) {
+          var u = new SpeechSynthesisUtterance(c);
+          u.lang = bcp; u.voice = voice; u.pitch = p.pitch; u.rate = p.rate;
+          u.onstart = function () { started = true; };
+          if (idx === parts.length - 1) u.onend = function () { finish(tok); };
+          u.onerror = function (ev) {
+            if (ev && (ev.error === "interrupted" || ev.error === "canceled")) return;
+            if (!started && tok === state.token) { started = true; speakCloud(parts, lang, p, tok); }
+            else if (idx === parts.length - 1) finish(tok);
+          };
+          speechSynthesis.speak(u);
         });
-        if (chunk.trim()) chunks.push(chunk);
-        chunks.forEach(function (c) {
-          var u = new SpeechSynthesisUtterance(c.trim());
-          u.lang = lang; u.pitch = pitch; u.rate = rate;
-          if (pick) u.voice = pick;
-          ss.speak(u);
-        });
+        setTimeout(function () {
+          if (started || tok !== state.token) return;
+          try { speechSynthesis.cancel(); } catch (e) {}
+          started = true;
+          speakCloud(parts, lang, p, tok);
+        }, 600);
+      }
+
+      window.erthStopSpeak = function () {
+        state.token++;
+        state.active = false;
+        try { if (hasSS) speechSynthesis.cancel(); } catch (e) {}
+        try { if (audio) { audio.onended = null; audio.onerror = null; audio.pause(); } } catch (e) {}
+      };
+      window.erthIsSpeaking = function () { return state.active; };
+      window.erthTtsSupported = function () { return hasSS || typeof Audio !== "undefined"; };
+
+      // Public entry point. lang: app code (ar, en, it, fr, tr, zh, ru, ja);
+      // persona: "severus" | "medusa". Call it straight from a tap handler.
+      window.erthSpeak = function (text, lang, persona) {
+        unlock();
+        window.erthStopSpeak();
+        var tok = state.token;
+        var p = PERSONA[persona] || PERSONA.severus;
+        lang = String(lang || "ar").slice(0, 2).toLowerCase();
+        var s = clean(text);
+        if (!s) return false;
+        var parts = chunks(s, 180);
+        state.active = true;
+        cue(persona);
+        var voice = hasSS ? voiceFor(lang, p.male) : null;
+        if (hasSS && voice) speakNative(parts, lang, p, voice, tok);
+        else speakCloud(parts, lang, p, tok);
         return true;
-      } catch (e) { return false; }
-    };
+      };
+    })();
     window.erthInstall = async function () {
       if (!window.deferredPrompt) return "unavailable";
       window.deferredPrompt.prompt();

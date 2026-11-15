@@ -9,7 +9,11 @@ external bool _isIOS();
 @JS('erthTtsSupported')
 external bool _ttsSupported();
 @JS('erthSpeak')
-external bool _speak(String text, String lang, double pitch, double rate, bool male);
+external bool _speak(String text, String lang, String persona);
+@JS('erthUnlockAudio')
+external void _unlockAudio();
+@JS('erthChime')
+external void _chime(String persona);
 @JS('erthStopSpeak')
 external void _stopSpeak();
 @JS('erthIsSpeaking')
@@ -41,12 +45,25 @@ Future<String> pwaInstall() async {
 // ── Text-to-speech (Web Speech API) ──
 bool ttsSupported() => _safe(() => _ttsSupported());
 bool ttsIsSpeaking() => _safe(() => _isSpeaking());
-bool ttsSpeak(String text,
-        {required String lang,
-        required double pitch,
-        required double rate,
-        required bool male}) =>
-    _safe(() => _speak(text, lang, pitch, rate, male));
+/// Speaks via the JS 3-layer engine. Call directly from a tap handler so
+/// mobile browsers treat it as user-initiated audio.
+bool ttsSpeak(String text, {required String lang, required String persona}) =>
+    _safe(() => _speak(text, lang, persona));
+
+/// Unlocks speechSynthesis, the <audio> element and AudioContext (tap only).
+void ttsUnlock() {
+  try {
+    _unlockAudio();
+  } catch (_) {}
+}
+
+/// Short Web Audio lyre chord for the persona.
+void ttsChime(String persona) {
+  try {
+    _chime(persona);
+  } catch (_) {}
+}
+
 void ttsStop() {
   try {
     _stopSpeak();

@@ -120,6 +120,8 @@ const _guideRows = <String, List<String>>{
   'What secrets does Ghadames hold?': ['Quali segreti custodisce Ghadames?', 'Quels secrets recèle Ghadamès ?', 'Gadames hangi sırları saklıyor?', '古达米斯藏着哪些秘密？', 'Какие тайны хранит Гадамес?', 'ガダメスにはどんな秘密があるの？'],
   'Voice': ['Voce', 'Voix', 'Ses', '语音', 'Голос', '音声'],
   'Read aloud': ['Leggi ad alta voce', 'Lire à voix haute', 'Sesli oku', '朗读', 'Прочитать вслух', '読み上げ'],
+  '⏹ Stop audio': ['⏹ Ferma audio', '⏹ Arrêter l’audio', '⏹ Sesi durdur', '⏹ 停止语音', '⏹ Остановить звук', '⏹ 音声を停止'],
+  '🔊 Listen': ['🔊 Ascolta la risposta', '🔊 Écouter la réponse', '🔊 Yanıtı dinle', '🔊 收听回复', '🔊 Прослушать ответ', '🔊 返答を聞く'],
   'Stop': ['Ferma', 'Arrêter', 'Durdur', '停止', 'Стоп', '停止'],
   'Speaking…': ['Sta parlando…', 'Parle…', 'Konuşuyor…', '正在讲述…', 'Говорит…', '話しています…'],
   'Thinking…': ['Sta pensando…', 'Réfléchit…', 'Düşünüyor…', '正在思考…', 'Думает…', '考えています…'],

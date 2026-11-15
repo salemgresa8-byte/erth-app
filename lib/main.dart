@@ -5245,6 +5245,9 @@ class _ChatSheetState extends State<ChatSheet> {
   GuideId? guide;
   bool voiceOn = true;
   bool speaking = false;
+
+  /// Index in [msgs] of the message being read aloud (for its stop button).
+  int? _speakingIdx;
   Timer? _speakPoll;
   String? _pendingInitial;
 
@@ -5266,14 +5269,20 @@ class _ChatSheetState extends State<ChatSheet> {
     super.dispose();
   }
 
+  /// Called synchronously from the persona card / switcher tap, so the
+  /// chime and the spoken greeting count as user-initiated audio on mobile.
   void _pick(GuideId id) {
     if (guide == id) return;
     _stopSpeaking();
+    ttsUnlock();
+    ttsChime(id.name);
     final g = kGuides[id]!;
+    final greeting = g.greeting(s);
     setState(() {
       guide = id;
-      msgs.add(_Msg(false, g.greeting(s), guide: id, greeting: true));
+      msgs.add(_Msg(false, greeting, guide: id, greeting: true));
     });
+    if (voiceOn) _speak(greeting, id, idx: msgs.length - 1);
     _toEnd();
     final q = _pendingInitial;
     _pendingInitial = null;
@@ -5283,10 +5292,8 @@ class _ChatSheetState extends State<ChatSheet> {
   }
 
   // ── Voice ──
-  void _speak(String text, GuideId id) {
-    final g = kGuides[id]!;
-    final ok = ttsSpeak(text,
-        lang: ttsLang(s.lang), pitch: g.pitch, rate: g.rate, male: g.male);
+  void _speak(String text, GuideId id, {int? idx}) {
+    final ok = ttsSpeak(text, lang: s.lang, persona: id.name);
     if (!ok) {
       if (mounted) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
@@ -5295,7 +5302,10 @@ class _ChatSheetState extends State<ChatSheet> {
       }
       return;
     }
-    setState(() => speaking = true);
+    setState(() {
+      speaking = true;
+      _speakingIdx = idx;
+    });
     _speakPoll?.cancel();
     var grace = 4; // speechSynthesis may need a moment to start.
     _speakPoll = Timer.periodic(const Duration(milliseconds: 300), (t) {
@@ -5305,20 +5315,32 @@ class _ChatSheetState extends State<ChatSheet> {
       }
       if (grace-- > 0) return;
       t.cancel();
-      if (mounted) setState(() => speaking = false);
+      if (mounted) {
+        setState(() {
+          speaking = false;
+          _speakingIdx = null;
+        });
+      }
     });
   }
 
   void _stopSpeaking() {
     _speakPoll?.cancel();
     ttsStop();
-    if (speaking && mounted) setState(() => speaking = false);
+    if (speaking && mounted) {
+      setState(() {
+        speaking = false;
+        _speakingIdx = null;
+      });
+    }
   }
 
   void _toEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
-        _scroll.animateTo(_scroll.position.maxScrollExtent + 200,
+        // Exact end: overshooting with bouncing physics left the list
+        // stuck past its content, hiding the newest bubble.
+        _scroll.animateTo(_scroll.position.maxScrollExtent,
             duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
     });
@@ -5327,6 +5349,9 @@ class _ChatSheetState extends State<ChatSheet> {
   Future<void> _send(String text) async {
     final q = text.trim();
     if (q.isEmpty || sending || guide == null) return;
+    // Still inside the send/chip tap: unlock audio now so the reply can be
+    // spoken automatically when it arrives (iOS Safari / Android Chrome).
+    ttsUnlock();
     _input.clear();
     _stopSpeaking();
     final asked = guide!;
@@ -5342,7 +5367,7 @@ class _ChatSheetState extends State<ChatSheet> {
       sending = false;
     });
     _toEnd();
-    if (voiceOn) _speak(reply.text, asked);
+    if (voiceOn) _speak(reply.text, asked, idx: msgs.length - 1);
   }
 
   Future<_Msg> _ask(String q, GuideId id) async {
@@ -5462,7 +5487,7 @@ class _ChatSheetState extends State<ChatSheet> {
               child: TapScale(
                 onTap: () {
                   setState(() => voiceOn = !voiceOn);
-                  if (!voiceOn) _stopSpeaking();
+                  voiceOn ? ttsUnlock() : _stopSpeaking();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -5599,24 +5624,27 @@ class _ChatSheetState extends State<ChatSheet> {
                     SelectableText(m.text,
                         style: TextStyle(
                             height: 1.7, color: m.user ? Colors.white : p.text)),
-                    if (!m.user)
-                      Row(children: [
-                        if (m.local)
-                          Expanded(
-                            child: Text(s.t('رد محلي (غير متصل)', 'Local reply (offline)'),
-                                style: TextStyle(fontSize: 11, color: p.text2)),
-                          )
-                        else
-                          const Spacer(),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          iconSize: 19,
-                          tooltip: s.t('استمع', 'Read aloud'),
-                          color: inkGold,
-                          onPressed: () => _speak(m.text, mg ?? guide!),
-                          icon: const Icon(Icons.volume_up_outlined),
+                    if (!m.user) ...[
+                      if (m.local)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(s.t('رد محلي (غير متصل)', 'Local reply (offline)'),
+                              style: TextStyle(fontSize: 11, color: p.text2)),
                         ),
-                      ]),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 8),
+                        child: _ListenButton(
+                          playing: speaking && _speakingIdx == i,
+                          label: speaking && _speakingIdx == i
+                              ? s.t('⏹ إيقاف الصوت', '⏹ Stop audio')
+                              : s.t('🔊 استمع للرد', '🔊 Listen'),
+                          // Speaks synchronously inside this tap.
+                          onTap: () => speaking && _speakingIdx == i
+                              ? _stopSpeaking()
+                              : _speak(m.text, mg ?? guide!, idx: i),
+                        ),
+                      ),
+                    ],
                   ]),
                 ),
               );
@@ -5657,6 +5685,45 @@ class _ChatSheetState extends State<ChatSheet> {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+/// Large, clear per-message play / stop button.
+class _ListenButton extends StatelessWidget {
+  final bool playing;
+  final String label;
+  final VoidCallback onTap;
+  const _ListenButton({required this.playing, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(30),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(30),
+              gradient: playing ? kRedGradient : null,
+              color: playing ? null : kGold.withValues(alpha: 0.14),
+              border: Border.all(color: playing ? kGoldLight : kGold.withValues(alpha: 0.6)),
+            ),
+            child: Text(label,
+                style: GoogleFonts.tajawal(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: playing ? kBeige : inkGold)),
+          ),
+        ),
+      ),
     );
   }
 }
