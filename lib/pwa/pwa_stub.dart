@@ -4,11 +4,8 @@ bool pwaIsStandalone() => false;
 bool pwaIsIOS() => false;
 Future<String> pwaInstall() async => 'unavailable';
 
-// Text-to-speech is provided by the browser's Web Speech API only.
-bool ttsSupported() => false;
+// Guide voice is web-only (window.erthSpeak).
 bool ttsIsSpeaking() => false;
 bool ttsSpeak(String text, {required String lang, required String persona}) =>
     false;
-void ttsUnlock() {}
-void ttsChime(String persona) {}
 void ttsStop() {}

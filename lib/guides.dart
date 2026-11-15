@@ -10,8 +10,7 @@ enum GuideId { severus, medusa }
 class GuideProfile {
   final GuideId id;
   final bool male;
-  final double pitch, rate;
-  const GuideProfile(this.id, {required this.male, required this.pitch, required this.rate});
+  const GuideProfile(this.id, {required this.male});
 
   String name(AppState s) => id == GuideId.severus
       ? s.t('الإمبراطور سيبتيموس سيفيروس', 'Emperor Septimius Severus')
@@ -80,22 +79,9 @@ class GuideProfile {
 }
 
 const kGuides = {
-  GuideId.severus: GuideProfile(GuideId.severus, male: true, pitch: 0.85, rate: 0.95),
-  GuideId.medusa: GuideProfile(GuideId.medusa, male: false, pitch: 1.15, rate: 0.98),
+  GuideId.severus: GuideProfile(GuideId.severus, male: true),
+  GuideId.medusa: GuideProfile(GuideId.medusa, male: false),
 };
-
-/// BCP-47 voice language for each UI language.
-String ttsLang(String code) => const {
-      'ar': 'ar-SA',
-      'en': 'en-GB',
-      'it': 'it-IT',
-      'fr': 'fr-FR',
-      'tr': 'tr-TR',
-      'zh': 'zh-CN',
-      'ru': 'ru-RU',
-      'ja': 'ja-JP',
-    }[code] ??
-    'en-GB';
 
 // Columns: it, fr, tr, zh, ru, ja (merged into kI18n).
 const _guideRows = <String, List<String>>{
@@ -127,7 +113,6 @@ const _guideRows = <String, List<String>>{
   'Thinking…': ['Sta pensando…', 'Réfléchit…', 'Düşünüyor…', '正在思考…', 'Думает…', '考えています…'],
   'Change guide': ['Cambia guida', 'Changer de guide', 'Rehberi değiştir', '更换向导', 'Сменить гида', 'ガイドを変更'],
   'AI role-play inspired by history — verify key facts.': ['Interpretazione IA ispirata alla storia: verifica i fatti principali.', 'Incarnation IA inspirée de l\'histoire — vérifiez les faits clés.', 'Tarihten esinlenen yapay zekâ canlandırması — önemli bilgileri doğrulayın.', '受历史启发的AI角色扮演——请核实关键事实。', 'ИИ-образ по мотивам истории — проверяйте ключевые факты.', '歴史に着想を得たAIロールプレイです。重要な事実は確認してください。'],
-  'Voice playback is not supported in this browser': ['La riproduzione vocale non è supportata da questo browser', 'La lecture vocale n\'est pas prise en charge par ce navigateur', 'Sesli oynatma bu tarayıcıda desteklenmiyor', '此浏览器不支持语音播放', 'Озвучивание не поддерживается этим браузером', 'このブラウザは音声再生に対応していません'],
 };
 
 // ─────────────────────────────── Bust art ───────────────────────────────────

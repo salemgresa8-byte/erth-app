@@ -5269,13 +5269,11 @@ class _ChatSheetState extends State<ChatSheet> {
     super.dispose();
   }
 
-  /// Called synchronously from the persona card / switcher tap, so the
-  /// chime and the spoken greeting count as user-initiated audio on mobile.
+  /// Called synchronously from the persona card / switcher tap, so a future
+  /// voice backend can start the greeting inside the user gesture.
   void _pick(GuideId id) {
     if (guide == id) return;
     _stopSpeaking();
-    ttsUnlock();
-    ttsChime(id.name);
     final g = kGuides[id]!;
     final greeting = g.greeting(s);
     setState(() {
@@ -5293,21 +5291,14 @@ class _ChatSheetState extends State<ChatSheet> {
 
   // ── Voice ──
   void _speak(String text, GuideId id, {int? idx}) {
-    final ok = ttsSpeak(text, lang: s.lang, persona: id.name);
-    if (!ok) {
-      if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
-            content: Text(s.t('النطق الصوتي غير مدعوم في هذا المتصفح',
-                'Voice playback is not supported in this browser'))));
-      }
-      return;
-    }
+    // Silent until a voice backend (ElevenLabs) is wired into erthSpeak.
+    if (!ttsSpeak(text, lang: s.lang, persona: id.name)) return;
     setState(() {
       speaking = true;
       _speakingIdx = idx;
     });
     _speakPoll?.cancel();
-    var grace = 4; // speechSynthesis may need a moment to start.
+    var grace = 4; // the audio backend may need a moment to start.
     _speakPoll = Timer.periodic(const Duration(milliseconds: 300), (t) {
       if (ttsIsSpeaking()) {
         grace = 0;
@@ -5349,9 +5340,6 @@ class _ChatSheetState extends State<ChatSheet> {
   Future<void> _send(String text) async {
     final q = text.trim();
     if (q.isEmpty || sending || guide == null) return;
-    // Still inside the send/chip tap: unlock audio now so the reply can be
-    // spoken automatically when it arrives (iOS Safari / Android Chrome).
-    ttsUnlock();
     _input.clear();
     _stopSpeaking();
     final asked = guide!;
@@ -5487,7 +5475,7 @@ class _ChatSheetState extends State<ChatSheet> {
               child: TapScale(
                 onTap: () {
                   setState(() => voiceOn = !voiceOn);
-                  voiceOn ? ttsUnlock() : _stopSpeaking();
+                  if (!voiceOn) _stopSpeaking();
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
