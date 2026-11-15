@@ -15,6 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'pwa/pwa.dart';
 
 part 'admin.dart';
+part 'guides.dart';
 part 'i18n.dart';
 part 'heritage_photos.dart';
 part 'heritage_stories.dart';
@@ -51,15 +52,40 @@ Future<void> main() async {
   final state = AppState();
   // Local prefs (localStorage on web) are near-instant; bound them anyway so
   // broken or blocked storage can never hold back the first frame.
-  try {
-    await state.loadPrefs().timeout(const Duration(milliseconds: 700));
-  } catch (e) {
-    debugPrint('[ERTH] prefs timed out, using defaults: $e');
-  }
+  // Arabic fonts load in parallel: they ship as local assets, and the splash
+  // stays up until they are ready (max 1.5s) so frame 1 shows no ☒ tofu boxes.
+  await Future.wait([
+    state.loadPrefs().timeout(const Duration(milliseconds: 700)).catchError(
+        (Object e) => debugPrint('[ERTH] prefs timed out, using defaults: $e')),
+    _preloadFonts(),
+  ]);
   runApp(ErthApp(state: state));
   // The backend connects in the background; every network call already
   // checks for a missing client and falls back to local data.
   unawaited(_initBackend());
+}
+
+/// Requests every font the first screens use, then waits for them (bounded).
+Future<void> _preloadFonts() async {
+  try {
+    for (final w in const [
+      FontWeight.w400,
+      FontWeight.w500,
+      FontWeight.w600,
+      FontWeight.w700,
+      FontWeight.w800,
+    ]) {
+      GoogleFonts.tajawal(fontWeight: w);
+    }
+    GoogleFonts.arefRuqaa(fontWeight: FontWeight.w700);
+    GoogleFonts.amiri();
+    GoogleFonts.amiri(fontWeight: FontWeight.w700);
+    GoogleFonts.cinzel(fontWeight: FontWeight.w600);
+    await GoogleFonts.pendingFonts()
+        .timeout(const Duration(milliseconds: 1500));
+  } catch (e) {
+    debugPrint('[ERTH] font preload incomplete: $e');
+  }
 }
 
 Future<void> _initBackend() async {
@@ -2832,7 +2858,7 @@ class AppShell extends StatelessWidget {
                       onPressed: () => showAddLogSheet(context, s),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
                 _GuidePill(
                   label: s.t('المرشد الأثري الذكي', 'AI Heritage Guide'),
@@ -2912,6 +2938,10 @@ class GlossyNavFrame extends StatelessWidget {
     return ColoredBox(color: surfaceColor.withValues(alpha: 0.94), child: bar);
   }
 }
+
+/// Bottom scroll padding for tabs under the floating guide pill, so the last
+/// card or gold action button can always scroll fully clear of it.
+const double kFabClearance = 150;
 
 class _GuidePill extends StatelessWidget {
   final String label;
@@ -3870,7 +3900,7 @@ class HomeTab extends StatelessWidget {
               .t('استعرض جميع المواقع الـ {n}', 'Browse all {n} sites')
               .replaceAll('{n}', '${s.sites.length}')),
         ),
-        const SizedBox(height: 90),
+        const SizedBox(height: kFabClearance),
       ],
     );
   }
@@ -4163,7 +4193,7 @@ class SitesTab extends StatelessWidget {
                 final cols = c.maxWidth > 900 ? 3 : (c.maxWidth > 560 ? 2 : 1);
                 return GridView.builder(
                   addAutomaticKeepAlives: false,
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, kFabClearance),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: cols,
                     mainAxisSpacing: 16,
@@ -4335,7 +4365,7 @@ class _ScannerTabState extends State<ScannerTab>
           ),
         );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 130),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, kFabClearance),
       children: [
         Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Expanded(
@@ -4633,7 +4663,7 @@ class LogsTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: s.loadLogs,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 160),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, kFabClearance + 64),
         children: [
           Text(s.t('سجل الترميم', 'Restoration log'), style: titleStyle(24)),
           const SizedBox(height: 4),
@@ -4940,7 +4970,7 @@ class _AccountTabState extends State<AccountTab> {
           ]),
         );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, kFabClearance),
       children: [
         Row(children: [
           Container(
@@ -5172,7 +5202,13 @@ class _Msg {
   final bool user;
   final String text;
   final bool local;
-  const _Msg(this.user, this.text, {this.local = false});
+
+  /// The historical guide who wrote a bot message.
+  final GuideId? guide;
+
+  /// Persona greetings are shown but never sent to the model as history.
+  final bool greeting;
+  const _Msg(this.user, this.text, {this.local = false, this.guide, this.greeting = false});
 }
 
 void showChatSheet(BuildContext context, AppState state, {String? initial}) {
@@ -5184,7 +5220,7 @@ void showChatSheet(BuildContext context, AppState state, {String? initial}) {
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (ctx) => SizedBox(
-      height: MediaQuery.of(ctx).size.height * 0.86,
+      height: MediaQuery.of(ctx).size.height * 0.9,
       child: ChatSheet(state: state, initial: initial),
     ),
   );
@@ -5205,30 +5241,78 @@ class _ChatSheetState extends State<ChatSheet> {
   final List<_Msg> msgs = [];
   bool sending = false;
 
+  /// Selected historical guide; null shows the persona selection screen.
+  GuideId? guide;
+  bool voiceOn = true;
+  bool speaking = false;
+  Timer? _speakPoll;
+  String? _pendingInitial;
+
   AppState get s => widget.state;
+  GuideProfile get profile => kGuides[guide ?? GuideId.severus]!;
 
   @override
   void initState() {
     super.initState();
-    msgs.add(_Msg(
-        false,
-        s.t(
-            s.isExpertRole
-                ? 'مرحبًا! أنا المرشد الأثري الذكي لـ «إرث». اسألني عن المواقع الأثرية الليبية أو عن كيمياء الترميم والمواد.'
-                : 'مرحبًا! أنا المرشد الأثري الذكي لـ «إرث». اسألني عن المواقع الأثرية الليبية وتاريخها وكيف تخطط لزيارتها.',
-            s.isExpertRole
-                ? 'Hello! I am ERTH’s AI heritage guide. Ask me about Libyan archaeological sites or conservation chemistry.'
-                : 'Hello! I am ERTH’s AI heritage guide. Ask me about Libyan sites, their history and how to plan your visit.')));
-    if (widget.initial != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _send(widget.initial!));
-    }
+    _pendingInitial = widget.initial;
   }
 
   @override
   void dispose() {
+    _speakPoll?.cancel();
+    ttsStop();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _pick(GuideId id) {
+    if (guide == id) return;
+    _stopSpeaking();
+    final g = kGuides[id]!;
+    setState(() {
+      guide = id;
+      msgs.add(_Msg(false, g.greeting(s), guide: id, greeting: true));
+    });
+    _toEnd();
+    final q = _pendingInitial;
+    _pendingInitial = null;
+    if (q != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _send(q));
+    }
+  }
+
+  // ── Voice ──
+  void _speak(String text, GuideId id) {
+    final g = kGuides[id]!;
+    final ok = ttsSpeak(text,
+        lang: ttsLang(s.lang), pitch: g.pitch, rate: g.rate, male: g.male);
+    if (!ok) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(
+            content: Text(s.t('النطق الصوتي غير مدعوم في هذا المتصفح',
+                'Voice playback is not supported in this browser'))));
+      }
+      return;
+    }
+    setState(() => speaking = true);
+    _speakPoll?.cancel();
+    var grace = 4; // speechSynthesis may need a moment to start.
+    _speakPoll = Timer.periodic(const Duration(milliseconds: 300), (t) {
+      if (ttsIsSpeaking()) {
+        grace = 0;
+        return;
+      }
+      if (grace-- > 0) return;
+      t.cancel();
+      if (mounted) setState(() => speaking = false);
+    });
+  }
+
+  void _stopSpeaking() {
+    _speakPoll?.cancel();
+    ttsStop();
+    if (speaking && mounted) setState(() => speaking = false);
   }
 
   void _toEnd() {
@@ -5242,28 +5326,29 @@ class _ChatSheetState extends State<ChatSheet> {
 
   Future<void> _send(String text) async {
     final q = text.trim();
-    if (q.isEmpty || sending) return;
+    if (q.isEmpty || sending || guide == null) return;
     _input.clear();
+    _stopSpeaking();
+    final asked = guide!;
     setState(() {
       msgs.add(_Msg(true, q));
       sending = true;
     });
     _toEnd();
-    final reply = await _ask(q);
+    final reply = await _ask(q, asked);
     if (!mounted) return;
     setState(() {
       msgs.add(reply);
       sending = false;
     });
     _toEnd();
+    if (voiceOn) _speak(reply.text, asked);
   }
 
-  Future<_Msg> _ask(String q) async {
-    final system = s.ar
-        ? 'أنت «المرشد الأثري الذكي» في تطبيق إرث. أنت خبير في علم الآثار الليبي (لبدة الكبرى، قورينا، صبراتة، أكاكوس، غدامس، وغيرها) وفي كيمياء الترميم والصيانة (بارالويد B-72، الجير النانوي، سيليكات الإيثيل، الشمع دقيق التبلور، إزالة الأملاح). أجب بالعربية بإيجاز ودقة، وصرّح عندما لا تكون متأكدًا.'
-        : 'You are the “AI Heritage Guide” in the ERTH app. You are an expert in Libyan archaeology (Leptis Magna, Cyrene, Sabratha, Acacus, Ghadames and more) and conservation chemistry (Paraloid B-72, nano-lime, ethyl silicate, micro-crystalline wax, desalination). Answer concisely and accurately, and say when you are unsure. Always reply in ${langNative(s.lang)}.';
+  Future<_Msg> _ask(String q, GuideId id) async {
+    final system = kGuides[id]!.systemPrompt(s);
     final history = msgs
-        .where((m) => m != msgs.first)
+        .where((m) => !m.greeting)
         .toList()
         .reversed
         .take(8)
@@ -5292,14 +5377,16 @@ class _ChatSheetState extends State<ChatSheet> {
         if (r.statusCode == 200) {
           final j = jsonDecode(utf8.decode(r.bodyBytes));
           final c = j['choices']?[0]?['message']?['content'];
-          if (c is String && c.trim().isNotEmpty) return _Msg(false, c.trim());
+          if (c is String && c.trim().isNotEmpty) {
+            return _Msg(false, c.trim(), guide: id);
+          }
         }
         debugPrint('[ERTH] OpenRouter $model -> ${r.statusCode}');
       } catch (e) {
         debugPrint('[ERTH] OpenRouter $model failed: $e');
       }
     }
-    return _Msg(false, _localAnswer(q), local: true);
+    return _Msg(false, _localAnswer(q), local: true, guide: id);
   }
 
   String _localAnswer(String q) {
@@ -5350,29 +5437,128 @@ class _ChatSheetState extends State<ChatSheet> {
 
   @override
   Widget build(BuildContext context) {
+    if (guide == null) {
+      return GuidePicker(state: s, onPick: _pick);
+    }
     final p = Pal.of(context);
-    final suggestions = [
-      s.t('حدثني عن لبدة الكبرى', 'Tell me about Leptis Magna'),
-      s.t('ما هو Paraloid B-72؟', 'What is Paraloid B-72?'),
-      s.t('كيف أعالج تزهر الأملاح؟', 'How do I treat salt efflorescence?'),
-    ];
+    final g = profile;
+    final active = sending || speaking;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Column(children: [
+        // Header: 1-tap persona switcher + voice toggle.
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.fromLTRB(14, 4, 10, 0),
           child: Row(children: [
-            Icon(Icons.auto_awesome, color: p.accent),
-            const SizedBox(width: 8),
-            Text(s.t('المرشد الأثري الذكي', 'AI Heritage Guide'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Expanded(
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: _PersonaSwitch(state: s, value: guide!, onChanged: _pick),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Tooltip(
+              message: s.t('نطق صوتي', 'Voice'),
+              child: TapScale(
+                onTap: () {
+                  setState(() => voiceOn = !voiceOn);
+                  if (!voiceOn) _stopSpeaking();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    color: voiceOn ? kGold.withValues(alpha: 0.18) : Colors.transparent,
+                    border: Border.all(
+                        color: voiceOn ? kGoldLight : kGold.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(voiceOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                        size: 18, color: voiceOn ? inkGold : inkMuted),
+                    const SizedBox(width: 6),
+                    Text(s.t('نطق صوتي', 'Voice'),
+                        style: GoogleFonts.tajawal(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: voiceOn ? inkGold : inkMuted)),
+                  ]),
+                ),
+              ),
+            ),
           ]),
         ),
-        const SizedBox(height: 8),
+        // Animated talking bust stage.
+        Container(
+          margin: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+          padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: kGold.withValues(alpha: active ? 0.7 : 0.35)),
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.topStart,
+              end: AlignmentDirectional.bottomEnd,
+              colors: [heroTop, surfaceColor],
+            ),
+          ),
+          child: Row(children: [
+            GuideBust(key: ValueKey(guide), id: guide!, size: 92, active: active, wave: true),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(g.name(s),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle(17)),
+                const SizedBox(height: 4),
+                Text(g.badge(s),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: captionStyle(12).copyWith(color: inkGold)),
+                const SizedBox(height: 8),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: active
+                      ? Row(
+                          key: const ValueKey('on'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(speaking ? Icons.graphic_eq : Icons.more_horiz,
+                                size: 16, color: inkGold),
+                            const SizedBox(width: 6),
+                            Text(speaking ? g.speaking(s) : g.thinking(s),
+                                style: captionStyle(12.5).copyWith(
+                                    color: inkGold, fontWeight: FontWeight.w700)),
+                            if (speaking) ...[
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: _stopSpeaking,
+                                borderRadius: BorderRadius.circular(20),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(4),
+                                  child: Icon(Icons.stop_circle_outlined,
+                                      size: 20,
+                                      color: inkGold,
+                                      semanticLabel: s.t('إيقاف', 'Stop')),
+                                ),
+                              ),
+                            ],
+                          ])
+                      : Text(
+                          s.t('محاكاة بالذكاء الاصطناعي مستوحاة من التاريخ — تحقّق من المعلومات المهمة.',
+                              'AI role-play inspired by history — verify key facts.'),
+                          key: const ValueKey('off'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: captionStyle(11)),
+                ),
+              ]),
+            ),
+          ]),
+        ),
         Expanded(
           child: ListView.builder(
             controller: _scroll,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             itemCount: msgs.length + (sending ? 1 : 0),
             itemBuilder: (_, i) {
               if (i == msgs.length) {
@@ -5388,6 +5574,7 @@ class _ChatSheetState extends State<ChatSheet> {
                 );
               }
               final m = msgs[i];
+              final mg = m.guide;
               return Align(
                 alignment: m.user
                     ? AlignmentDirectional.centerEnd
@@ -5395,22 +5582,41 @@ class _ChatSheetState extends State<ChatSheet> {
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 520),
                   margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
+                  padding: EdgeInsets.fromLTRB(14, 12, 14, m.user ? 12 : 4),
                   decoration: BoxDecoration(
                     color: m.user ? p.primary : p.card,
                     borderRadius: BorderRadius.circular(18),
                     border: m.user ? null : Border.all(color: p.line),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (!m.user && mg != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(kGuides[mg]!.short(s),
+                            style: captionStyle(11.5).copyWith(
+                                color: inkGold, fontWeight: FontWeight.w800)),
+                      ),
                     SelectableText(m.text,
                         style: TextStyle(
                             height: 1.7, color: m.user ? Colors.white : p.text)),
-                    if (m.local)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(s.t('رد محلي (غير متصل)', 'Local reply (offline)'),
-                            style: TextStyle(fontSize: 11, color: p.text2)),
-                      ),
+                    if (!m.user)
+                      Row(children: [
+                        if (m.local)
+                          Expanded(
+                            child: Text(s.t('رد محلي (غير متصل)', 'Local reply (offline)'),
+                                style: TextStyle(fontSize: 11, color: p.text2)),
+                          )
+                        else
+                          const Spacer(),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 19,
+                          tooltip: s.t('استمع', 'Read aloud'),
+                          color: inkGold,
+                          onPressed: () => _speak(m.text, mg ?? guide!),
+                          icon: const Icon(Icons.volume_up_outlined),
+                        ),
+                      ]),
                   ]),
                 ),
               );
@@ -5423,7 +5629,7 @@ class _ChatSheetState extends State<ChatSheet> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              for (final q in suggestions)
+              for (final q in g.chips(s))
                 Padding(
                   padding: const EdgeInsetsDirectional.only(end: 8),
                   child: ActionChip(label: Text(q), onPressed: () => _send(q)),
@@ -5451,6 +5657,63 @@ class _ChatSheetState extends State<ChatSheet> {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+/// Compact two-segment pill: tap to switch between Severus and Medusa.
+class _PersonaSwitch extends StatelessWidget {
+  final AppState state;
+  final GuideId value;
+  final ValueChanged<GuideId> onChanged;
+  const _PersonaSwitch({required this.state, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: state.t('تغيير المرشد', 'Change guide'),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: kGold.withValues(alpha: 0.55)),
+          color: surfaceColor,
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          for (final g in kGuides.values)
+            GestureDetector(
+              onTap: () => onChanged(g.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(26),
+                  gradient: g.id == value
+                      ? (g.id == GuideId.severus ? kGoldGradient : kRedGradient)
+                      : null,
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(
+                      g.id == GuideId.severus
+                          ? Icons.military_tech_outlined
+                          : Icons.auto_awesome_outlined,
+                      size: 15,
+                      color: g.id == value
+                          ? (g.id == GuideId.severus ? Colors.black : kBeige)
+                          : inkMuted),
+                  const SizedBox(width: 5),
+                  Text(g.short(state),
+                      style: GoogleFonts.tajawal(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: g.id == value
+                              ? (g.id == GuideId.severus ? Colors.black : kBeige)
+                              : inkMuted)),
+                ]),
+              ),
+            ),
+        ]),
+      ),
     );
   }
 }

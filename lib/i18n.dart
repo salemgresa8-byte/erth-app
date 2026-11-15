@@ -190,11 +190,12 @@ const _rows = <String, List<String>>{
 final Map<String, Map<String, String>> kI18n = () {
   const cols = ['it', 'fr', 'tr', 'zh', 'ru', 'ja'];
   final out = {for (final c in cols) c: <String, String>{}};
-  _rows.forEach((en, v) {
+  for (final e in [..._rows.entries, ..._guideRows.entries]) {
+    final en = e.key, v = e.value;
     for (var i = 0; i < cols.length && i < v.length; i++) {
       out[cols[i]]![en] = v[i];
     }
-  });
+  }
   return out;
 }();
 

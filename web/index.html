@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <!--
     If you are serving your web app in a path other than the root, change the
     href value below to reflect the base path you are serving from.
@@ -24,14 +25,21 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="ERTH">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png?v=5">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=6">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png?v=5"/>
+  <link rel="icon" type="image/png" href="favicon.png?v=6"/>
 
   <title>إرث | ERTH</title>
-  <meta name="theme-color" content="#8B261D">
-  <link rel="manifest" href="manifest.json?v=5">
+  <meta name="theme-color" content="#100304">
+  <!-- Primary Arabic font: fetched in parallel with the engine so Flutter
+       finds it in the HTTP cache when main() preloads fonts. -->
+  <link rel="preload" href="assets/assets/fonts/Tajawal-Regular.ttf" as="fetch" type="font/ttf" crossorigin="anonymous">
+  <link rel="preload" href="assets/assets/fonts/Tajawal-Bold.ttf" as="fetch" type="font/ttf" crossorigin="anonymous">
+  <style>
+    html,body{width:100%;height:100%;margin:0;padding:0;overflow:hidden;background-color:#100304;-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+  </style>
+  <link rel="manifest" href="manifest.json?v=6">
   <script>
     // PWA install support: capture the install prompt for the Flutter UI.
     window.deferredPrompt = null;
@@ -51,6 +59,54 @@
       return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     };
+    // ── Live voice (Web Speech TTS) for the historical AI guides ──
+    // Long texts are queued in sentence chunks: Chrome silently stops a
+    // single utterance after ~15s.
+    window.erthTtsSupported = function () {
+      return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+    };
+    if (window.erthTtsSupported()) {
+      try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); }; } catch (e) {}
+    }
+    window.erthStopSpeak = function () { try { speechSynthesis.cancel(); } catch (e) {} };
+    window.erthIsSpeaking = function () {
+      try { return !!(speechSynthesis.speaking || speechSynthesis.pending); } catch (e) { return false; }
+    };
+    window.erthSpeak = function (text, lang, pitch, rate, male) {
+      if (!window.erthTtsSupported()) return false;
+      try {
+        var ss = window.speechSynthesis;
+        ss.cancel();
+        var base = (lang || "en").slice(0, 2).toLowerCase();
+        var voices = ss.getVoices().filter(function (v) {
+          return v.lang && v.lang.replace("_", "-").toLowerCase().indexOf(base) === 0;
+        });
+        var maleRx = /\bmale\b|\bman\b|david|daniel|george|james|mark|maged|tarik|naayf|hamed|shakir|luca|diego|cosimo|paul|henri|ahmet|yunyang|kangkang|pavel|dmitry|ichiro|keita/i;
+        var femRx = /female|woman|zira|samantha|karen|susan|hazel|hoda|laila|salma|zariyah|amira|elsa|alice|isabella|julie|amelie|denise|filiz|emel|huihui|xiaoxiao|tingting|irina|svetlana|milena|kyoko|haruka|nanami|ayumi/i;
+        var pick = null;
+        for (var i = 0; i < voices.length && !pick; i++) {
+          var n = voices[i].name || "";
+          if (male ? (maleRx.test(n) && !/female/i.test(n)) : femRx.test(n)) pick = voices[i];
+        }
+        if (!pick && voices.length) pick = voices[0];
+        var clean = String(text).replace(/[*#_`>|]+/g, " ").replace(/\s+/g, " ").trim();
+        var parts = clean.match(/[^.!?؟。！？\n]+[.!?؟。！？]*/g) || [clean];
+        var chunk = "";
+        var chunks = [];
+        parts.forEach(function (p) {
+          if ((chunk + p).length > 180 && chunk) { chunks.push(chunk); chunk = ""; }
+          chunk += p;
+        });
+        if (chunk.trim()) chunks.push(chunk);
+        chunks.forEach(function (c) {
+          var u = new SpeechSynthesisUtterance(c.trim());
+          u.lang = lang; u.pitch = pitch; u.rate = rate;
+          if (pick) u.voice = pick;
+          ss.speak(u);
+        });
+        return true;
+      } catch (e) { return false; }
+    };
     window.erthInstall = async function () {
       if (!window.deferredPrompt) return "unavailable";
       window.deferredPrompt.prompt();
@@ -60,7 +116,7 @@
     };
   </script>
 </head>
-<body style="margin:0;background:#100304;">
+<body>
   <!--
     Loading splash: visible immediately while main.dart.js and CanvasKit
     download (several MB). Without it, slow connections see a blank white
@@ -68,7 +124,7 @@
   -->
   <style>
     #erth-splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 35%,#2a0c10 0%,#100304 70%);color:#C59B27;font-family:Tahoma,Arial,sans-serif;z-index:9999;transition:opacity .4s ease}
-    #erth-splash img{width:96px;height:96px;object-fit:contain}
+    #erth-splash svg{width:112px;height:112px;display:block;filter:drop-shadow(0 0 14px rgba(197,155,39,.35))}
     #erth-splash .name{font-size:28px;letter-spacing:6px;color:#E6D7C3}
     #erth-splash .bar{width:140px;height:3px;border-radius:3px;background:rgba(197,155,39,.2);overflow:hidden}
     #erth-splash .bar i{display:block;width:40%;height:100%;background:#C59B27;animation:erth-load 1.2s ease-in-out infinite}
@@ -76,7 +132,18 @@
     @keyframes erth-load{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}
   </style>
   <div id="erth-splash" dir="rtl">
-    <img src="icons/Icon-192.png?v=5" alt="">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs><linearGradient id="erthGold" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FAF2DC"/><stop offset=".45" stop-color="#DFB85C"/><stop offset="1" stop-color="#C59B27"/>
+      </linearGradient></defs>
+      <g fill="none" stroke="url(#erthGold)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 8H94L88 18H12Z"/>
+        <path d="M10 25Q16 24 16 32V84Q16 90 8 92H30Q24 90 24 84V32Q24 26 30 25"/>
+        <path d="M90 25Q84 24 84 32V84Q84 90 92 92H70Q76 90 76 84V32Q76 26 70 25"/>
+        <path d="M28 92V48A22 22 0 0 1 72 48V92"/>
+        <path d="M37 92V48A13 13 0 0 1 63 48V92"/>
+      </g>
+    </svg>
     <div class="name">إرث · ERTH</div>
     <div class="bar"><i></i></div>
     <div class="msg">جارٍ تحميل منصة التراث الليبي…</div>
@@ -97,7 +164,8 @@
       }
     } catch (e) {}
 
-    // Splash watchdog: fade out on Flutter's first frame, or after 3s max.
+    // Splash watchdog: fade out on Flutter's first frame (main() awaits the
+    // Arabic fonts first, max 1.5s), or after 6s as a safety net.
     var erthSplashGone = false;
     function removeSplash() {
       if (erthSplashGone) return;
@@ -111,7 +179,7 @@
       }, 400);
     }
     window.addEventListener('flutter-first-frame', removeSplash);
-    setTimeout(removeSplash, 3000);
+    setTimeout(removeSplash, 6000);
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
