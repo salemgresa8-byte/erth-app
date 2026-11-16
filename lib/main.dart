@@ -5293,7 +5293,7 @@ class _ChatSheetState extends State<ChatSheet> {
 
   // ── Voice ──
   void _speak(String text, GuideId id, {int? idx}) {
-    // Silent until a voice backend (ElevenLabs) is wired into erthSpeak.
+    // ElevenLabs via window.erthSpeak (persona "severus" / "medusa").
     if (!ttsSpeak(text, lang: s.lang, persona: id.name)) return;
     setState(() {
       speaking = true;
@@ -5516,7 +5516,14 @@ class _ChatSheetState extends State<ChatSheet> {
             ),
           ),
           child: Row(children: [
-            GuideBust(key: ValueKey(guide), id: guide!, size: 92, active: active, wave: true),
+            GuideBust(
+                key: ValueKey(guide),
+                id: guide!,
+                size: 92,
+                active: active,
+                wave: true,
+                breathe: true,
+                onTap: () => showGuidePortrait(context, g, s)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -5606,10 +5613,14 @@ class _ChatSheetState extends State<ChatSheet> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     if (!m.user && mg != null)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(kGuides[mg]!.short(s),
-                            style: captionStyle(11.5).copyWith(
-                                color: inkGold, fontWeight: FontWeight.w800)),
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          GuideAvatar(id: mg, size: 24),
+                          const SizedBox(width: 7),
+                          Text(kGuides[mg]!.short(s),
+                              style: captionStyle(11.5).copyWith(
+                                  color: inkGold, fontWeight: FontWeight.w800)),
+                        ]),
                       ),
                     SelectableText(m.text,
                         style: TextStyle(
@@ -5750,15 +5761,12 @@ class _PersonaSwitch extends StatelessWidget {
                       : null,
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(
-                      g.id == GuideId.severus
-                          ? Icons.military_tech_outlined
-                          : Icons.auto_awesome_outlined,
-                      size: 15,
-                      color: g.id == value
-                          ? (g.id == GuideId.severus ? Colors.black : kBeige)
-                          : inkMuted),
-                  const SizedBox(width: 5),
+                  AnimatedOpacity(
+                    opacity: g.id == value ? 1 : 0.6,
+                    duration: const Duration(milliseconds: 220),
+                    child: GuideAvatar(id: g.id, size: 20, ring: g.id == value),
+                  ),
+                  const SizedBox(width: 6),
                   Text(g.short(state),
                       style: GoogleFonts.tajawal(
                           fontSize: 13.5,

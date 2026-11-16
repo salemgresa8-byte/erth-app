@@ -3,7 +3,7 @@ part of 'main.dart';
 // ───────────────────── Historical AI guides (personas) ──────────────────────
 // The Smart Guide chat can be led by Emperor Septimius Severus or by Medusa of
 // Leptis Magna. Each guide has its own greeting, tone (system prompt), quick
-// questions, animated marble bust and Web Speech voice profile.
+// questions, animated portrait (web/assets/guides/) and ElevenLabs voice.
 
 enum GuideId { severus, medusa }
 
@@ -14,7 +14,7 @@ class GuideProfile {
 
   String name(AppState s) => id == GuideId.severus
       ? s.t('الإمبراطور سيبتيموس سيفيروس', 'Emperor Septimius Severus')
-      : s.t('ميدوسا اللبدية', 'Medusa of Leptis Magna');
+      : s.t('ميدوسا', 'Medusa');
 
   String short(AppState s) =>
       id == GuideId.severus ? s.t('سيفيروس', 'Severus') : s.t('ميدوسا', 'Medusa');
@@ -75,7 +75,7 @@ class GuideProfile {
           : 'You are role-playing Emperor Septimius Severus (145–211 AD), son of Leptis Magna and Roman emperor from 193 AD, inside the ERTH Libyan heritage app. Speak in the first person with the calm authority of a strategist and builder: focus on empires, military strategy, architecture, theatres, triumphal arches, forts and the cities of Roman Libya. You are also an expert guide to all Libyan heritage (Leptis Magna, Sabratha, Cyrene, Ghadames, Acacus…). Stay historically accurate; for events after your lifetime answer as a guide who has studied them, and say when you are unsure. Be concise (under 160 words).$expertEn Always reply in ${langNative(s.lang)}.';
     }
     return s.ar
-        ? 'أنت تؤدين دور «ميدوسا اللبدية»، الروح الحارسة الرقيقة لميداليات ميدوسا في الفوروم السيفيري بلبدة الكبرى، داخل تطبيق «إرث». تحدّثي بصيغة المتكلمة بصوت دافئ شاعري حكيم: ركّزي على الفسيفساء (زليتن، فيلا سيلين)، والنحت، وقورينا الإغريقية والمدرسة القورينائية في الفلسفة (أريستيبوس)، وغدامس وتراث الواحات والحرف. أنتِ رمز للفن والحماية لا وحش، فحافظي على أسلوب لائق للعائلة. التزمي بالدقة التاريخية وصرّحي عندما لا تكونين متأكدة. أجيبي بالعربية بإيجاز (أقل من 160 كلمة).$expertAr'
+        ? 'أنت تؤدين دور «ميدوسا»، الروح الحارسة الرقيقة لميداليات ميدوسا في الفوروم السيفيري بلبدة الكبرى، داخل تطبيق «إرث». تحدّثي بصيغة المتكلمة بصوت دافئ شاعري حكيم: ركّزي على الفسيفساء (زليتن، فيلا سيلين)، والنحت، وقورينا الإغريقية والمدرسة القورينائية في الفلسفة (أريستيبوس)، وغدامس وتراث الواحات والحرف. أنتِ رمز للفن والحماية لا وحش، فحافظي على أسلوب لائق للعائلة. التزمي بالدقة التاريخية وصرّحي عندما لا تكونين متأكدة. أجيبي بالعربية بإيجاز (أقل من 160 كلمة).$expertAr'
         : 'You are role-playing “Medusa of Leptis Magna”, the gentle guardian spirit of the Medusa medallions of the Severan Forum, inside the ERTH Libyan heritage app. Speak in the first person with a warm, poetic, wise voice: focus on mosaics (Zliten, Villa Silin), sculpture, Greek Cyrene and the Cyrenaic school of philosophy (Aristippus), Ghadames, oasis heritage and crafts. You are a symbol of art and protection, not a monster: stay family-friendly. Stay historically accurate and say when you are unsure. Be concise (under 160 words).$expertEn Always reply in ${langNative(s.lang)}.';
   }
 }
@@ -494,60 +494,232 @@ class _MedusaPainter extends CustomPainter {
   bool shouldRepaint(_MedusaPainter old) => old.talk != talk || old.blink != blink;
 }
 
+// ───────────────────────── Character portraits ──────────────────────────────
+
+/// Cinematic 3D-style portraits, served from web/assets/guides/ (512px WebP,
+/// ~50 KB each). The marble painters above remain as the loading/offline
+/// fallback.
+String guidePortraitUrl(GuideId id) =>
+    id == GuideId.severus ? 'assets/guides/severus.webp' : 'assets/guides/medusa.webp';
+
+/// Circular portrait that fades in once decoded. Painted inside its own
+/// RepaintBoundary so the bust's breathing transform only re-composites it.
+class GuidePortrait extends StatelessWidget {
+  final GuideId id;
+  final double size;
+  const GuidePortrait({super.key, required this.id, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = CustomPaint(
+      size: Size.square(size),
+      painter: id == GuideId.severus ? _SeverusPainter(0, 0) : _MedusaPainter(0, 0),
+    );
+    return RepaintBoundary(
+      child: SizedBox.square(
+        dimension: size,
+        child: Image.network(
+          guidePortraitUrl(id),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.medium,
+          gaplessPlayback: true,
+          semanticLabel: id == GuideId.severus ? 'Septimius Severus' : 'Medusa',
+          frameBuilder: (context, child, frame, sync) {
+            if (sync) return child; // already cached: no fade
+            return Stack(fit: StackFit.expand, children: [
+              if (frame == null) fallback,
+              AnimatedOpacity(
+                opacity: frame == null ? 0 : 1,
+                duration: const Duration(milliseconds: 450),
+                curve: Curves.easeOut,
+                child: child,
+              ),
+            ]);
+          },
+          errorBuilder: (context, _, __) => fallback,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small circular avatar indicator (persona switch, chat bubbles).
+class GuideAvatar extends StatelessWidget {
+  final GuideId id;
+  final double size;
+  final bool ring;
+  const GuideAvatar({super.key, required this.id, this.size = 22, this.ring = true});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: kWine,
+        border: ring ? Border.all(color: kGoldLight, width: size > 30 ? 1.6 : 1.1) : null,
+      ),
+      child: ClipOval(child: GuidePortrait(id: id, size: size)),
+    );
+  }
+}
+
+/// Full-screen portrait overlay with a composited fade/scale-in.
+Future<void> showGuidePortrait(BuildContext context, GuideProfile g, AppState s) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: s.t('إغلاق', 'Close'),
+    barrierColor: Colors.black.withValues(alpha: 0.78),
+    transitionDuration: const Duration(milliseconds: 320),
+    pageBuilder: (ctx, _, __) {
+      final side = math.min(MediaQuery.of(ctx).size.shortestSide * 0.78, 420.0);
+      return SafeArea(
+        child: Center(
+          child: GestureDetector(
+            onTap: () => Navigator.of(ctx).pop(),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: side,
+                  height: side,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kWine,
+                    border: Border.all(color: kGoldLight, width: 3),
+                  ),
+                  child: ClipOval(child: GuidePortrait(id: g.id, size: side)),
+                ),
+                const SizedBox(height: 16),
+                Text(g.name(s),
+                    textAlign: TextAlign.center,
+                    style: titleStyle(22).copyWith(color: kBeige)),
+                const SizedBox(height: 6),
+                Text(g.badge(s),
+                    textAlign: TextAlign.center,
+                    style: captionStyle(13).copyWith(color: kGoldLight)),
+              ]),
+            ),
+          ),
+        ),
+      );
+    },
+    transitionBuilder: (ctx, anim, _, child) {
+      final c = CurvedAnimation(parent: anim, curve: Curves.easeOutCubic);
+      return FadeTransition(
+        opacity: c,
+        child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(c), child: child),
+      );
+    },
+  );
+}
+
+/// One-shot fade-in (opacity only, so it stays on the compositor).
+class FadeInOnce extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  const FadeInOnce(
+      {super.key,
+      required this.child,
+      this.delay = Duration.zero,
+      this.duration = const Duration(milliseconds: 420)});
+
+  @override
+  State<FadeInOnce> createState() => _FadeInOnceState();
+}
+
+class _FadeInOnceState extends State<FadeInOnce> with SingleTickerProviderStateMixin {
+  late final AnimationController _a = AnimationController(vsync: this, duration: widget.duration);
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer(widget.delay, () {
+      if (mounted) _a.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    _a.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      FadeTransition(opacity: CurvedAnimation(parent: _a, curve: Curves.easeOut), child: widget.child);
+}
+
 // ───────────────────────── Animated talking bust ────────────────────────────
 
-/// Marble bust in a gold medallion frame. While [active] it "speaks": the
-/// mouth moves, the bust breathes deeper, a gold aura pulses and (with
-/// [wave]) a gold equalizer waveform animates underneath.
+/// Character portrait in a gold medallion frame. It breathes gently when
+/// idle; while [active] it breathes deeper, the gold aura pulses, golden
+/// soundwave rings ripple outwards and (with [wave]) a gold equalizer
+/// animates underneath.
 class GuideBust extends StatefulWidget {
   final GuideId id;
   final double size;
   final bool active;
   final bool wave;
+  /// Gentle breathing while idle (the chat stage). Picker cards stay still.
+  final bool breathe;
+  final VoidCallback? onTap;
   const GuideBust(
-      {super.key, required this.id, this.size = 120, this.active = false, this.wave = false});
+      {super.key,
+      required this.id,
+      this.size = 120,
+      this.active = false,
+      this.wave = false,
+      this.breathe = false,
+      this.onTap});
 
   @override
   State<GuideBust> createState() => _GuideBustState();
 }
 
 class _GuideBustState extends State<GuideBust> {
-  // Animation phase 0..1 over a 4.8s cycle. It advances only while the guide
-  // is thinking/speaking, and at ~30fps rather than every vsync: plenty for a
-  // breathing, talking bust, at half the repaint cost on phones. Idle busts
-  // (picker cards, a quiet stage) paint one still frame and cost nothing.
+  // Animation phase 0..1 over a 4.8s cycle, driven by a Timer instead of
+  // vsync: 25fps while speaking, 10fps for idle breathing on the chat stage
+  // (its motion is sub-pixel per step, so the low rate is invisible), and no
+  // ticking at all for still busts such as the picker cards. The portrait itself sits in a RepaintBoundary, so each tick
+  // only re-composites a transform. Ticking pauses when the bust is offstage.
   static const _cycleMs = 4800;
   final _c = ValueNotifier<double>(0);
-  final _clock = Stopwatch();
+  final _clock = Stopwatch()..start();
   Timer? _timer;
+  int _period = 0;
+  bool _visible = true;
 
-  void _start() {
-    if (_timer != null) return;
-    _clock
-      ..reset()
-      ..start();
-    _timer = Timer.periodic(const Duration(milliseconds: 33), (_) {
+  void _schedule() {
+    final want = !_visible ? 0 : (widget.active ? 40 : (widget.breathe ? 100 : 0));
+    if (want == _period) return;
+    _timer?.cancel();
+    _timer = null;
+    _period = want;
+    if (want == 0) return;
+    _timer = Timer.periodic(Duration(milliseconds: want), (_) {
       _c.value = (_clock.elapsedMilliseconds % _cycleMs) / _cycleMs;
     });
   }
 
-  void _stop() {
-    _timer?.cancel();
-    _timer = null;
-    _clock.stop();
-    _c.value = 0; // settle on the neutral (closed-mouth) frame
-  }
-
   @override
-  void initState() {
-    super.initState();
-    if (widget.active) _start();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _visible = TickerMode.valuesOf(context).enabled;
+    _schedule();
   }
 
   @override
   void didUpdateWidget(GuideBust old) {
     super.didUpdateWidget(old);
-    widget.active ? _start() : _stop();
+    _schedule();
   }
 
   @override
@@ -560,24 +732,16 @@ class _GuideBustState extends State<GuideBust> {
   @override
   Widget build(BuildContext context) {
     final sz = widget.size;
-    return RepaintBoundary(
+    final portrait = GuidePortrait(id: widget.id, size: sz * 0.9);
+    final body = RepaintBoundary(
       child: AnimatedBuilder(
         animation: _c,
-        builder: (context, _) {
+        child: portrait,
+        builder: (context, portrait) {
           final t = _c.value;
           final a = widget.active;
           final breathe = math.sin(t * 2 * math.pi * 2);
-          final talk = a
-              ? ((math.sin(t * 2 * math.pi * 26) + 1) / 2) *
-                  (0.45 + 0.55 * math.sin(t * 2 * math.pi * 5).abs())
-              : 0.0;
-          // Blink once per cycle.
-          final bt = (t * 4.8) % 4.8;
-          final blink = bt < 0.14 ? math.sin(bt / 0.14 * math.pi) : 0.0;
           final glow = a ? 0.55 + 0.25 * math.sin(t * 2 * math.pi * 6) : 0.18;
-          final painter = widget.id == GuideId.severus
-              ? _SeverusPainter(talk, blink)
-              : _MedusaPainter(talk, blink);
           final bust = SizedBox(
             width: sz,
             height: sz,
@@ -612,27 +776,31 @@ class _GuideBustState extends State<GuideBust> {
                 ),
                 child: ClipOval(
                   child: Transform.translate(
-                    offset: Offset(0, -breathe * sz * (a ? 0.012 : 0.006)),
+                    offset: Offset(0, -breathe * sz * (a ? 0.010 : 0.005)),
                     child: Transform.scale(
-                      scale: 1.14 + breathe * (a ? 0.018 : 0.008),
+                      scale: 1.03 + breathe * (a ? 0.016 : 0.008),
                       alignment: Alignment.bottomCenter,
-                      child: CustomPaint(size: Size.square(sz * 0.9), painter: painter),
+                      child: portrait,
                     ),
                   ),
                 ),
               ),
-              // Outer pulsing ring.
+              // Golden soundwave rings rippling out while speaking.
               if (a)
-                Container(
-                  width: sz * (0.94 + 0.05 * ((t * 6) % 1)),
-                  height: sz * (0.94 + 0.05 * ((t * 6) % 1)),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                        color: kGoldLight.withValues(alpha: 0.6 * (1 - (t * 6) % 1)),
-                        width: 1.5),
-                  ),
-                ),
+                for (final ph in const [0.0, 0.5])
+                  Builder(builder: (_) {
+                    final r = (t * 6 + ph) % 1;
+                    return Container(
+                      width: sz * (0.92 + 0.08 * r),
+                      height: sz * (0.92 + 0.08 * r),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: kGoldLight.withValues(alpha: 0.65 * (1 - r)),
+                            width: 1.6),
+                      ),
+                    );
+                  }),
             ]),
           );
           if (!widget.wave) return bust;
@@ -644,6 +812,8 @@ class _GuideBustState extends State<GuideBust> {
         },
       ),
     );
+    if (widget.onTap == null) return body;
+    return GestureDetector(onTap: widget.onTap, child: body);
   }
 }
 
@@ -700,7 +870,11 @@ class GuidePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state;
     final cards = [
-      for (final g in kGuides.values) _GuideCard(state: s, guide: g, onPick: onPick),
+      for (final (i, g) in kGuides.values.indexed)
+        FadeInOnce(
+          delay: Duration(milliseconds: 60 + 140 * i),
+          child: _GuideCard(state: s, guide: g, onPick: onPick, ctaDelay: 260 + 140 * i),
+        ),
     ];
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
@@ -741,7 +915,9 @@ class _GuideCard extends StatelessWidget {
   final AppState state;
   final GuideProfile guide;
   final ValueChanged<GuideId> onPick;
-  const _GuideCard({required this.state, required this.guide, required this.onPick});
+  final int ctaDelay;
+  const _GuideCard(
+      {required this.state, required this.guide, required this.onPick, this.ctaDelay = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -780,12 +956,17 @@ class _GuideCard extends StatelessWidget {
             Text(guide.desc(s),
                 textAlign: TextAlign.center, style: subStyle(14).copyWith(height: 1.6)),
             const SizedBox(height: 14),
-            GoldButton(
-              height: 48,
-              red: !sev,
-              icon: Icons.forum_outlined,
-              label: guide.cta(s),
-              onPressed: () => onPick(guide.id),
+            // "تحدث مع سيفيروس / ميدوسا": opacity-only fade (compositor).
+            FadeInOnce(
+              delay: Duration(milliseconds: ctaDelay),
+              duration: const Duration(milliseconds: 360),
+              child: GoldButton(
+                height: 48,
+                red: !sev,
+                icon: Icons.forum_outlined,
+                label: guide.cta(s),
+                onPressed: () => onPick(guide.id),
+              ),
             ),
           ]),
         ),
