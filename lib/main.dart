@@ -967,7 +967,7 @@ const kSites = <HeritageSite>[
     id: 'leptis', nameAr: 'لبدة الكبرى', nameEn: 'Leptis Magna',
     regionAr: 'الخمس', regionEn: 'Khoms', category: 'آثار رومانية',
     eraAr: 'القرن 7 ق.م – القرن 4 م', eraEn: '7th c. BC – 4th c. AD',
-    unesco: true, lat: 32.6385, lon: 14.2910,
+    unesco: true, lat: 32.6366, lon: 14.2929,
     status: Preservation.underTreatment, icon: Icons.account_balance,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Leptis_Magna_Arch_of_Septimius_Severus.jpg/960px-Leptis_Magna_Arch_of_Septimius_Severus.jpg',
     storyAr: 'ميناء فينيقي تحول إلى إحدى أجمل المدن الرومانية، وفيها وُلد الإمبراطور سبتيموس سيفيروس. تضم قوس النصر والسوق والمسرح والحمامات والبازيليكا.',
@@ -982,7 +982,7 @@ const kSites = <HeritageSite>[
     id: 'cyrene', nameAr: 'شحات - قورينا', nameEn: 'Cyrene',
     regionAr: 'الجبل الأخضر', regionEn: 'Green Mountain', category: 'آثار إغريقية',
     eraAr: 'القرن 7 ق.م – القرن 4 م', eraEn: '7th c. BC – 4th c. AD',
-    unesco: true, lat: 32.8250, lon: 21.8580,
+    unesco: true, lat: 32.8206, lon: 21.8569,
     status: Preservation.needsCare, icon: Icons.temple_hindu,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c0/Temple_of_Zeus_in_Cyrene.jpg/960px-Temple_of_Zeus_in_Cyrene.jpg',
     storyAr: 'مستعمرة إغريقية أسسها مستوطنون من جزيرة ثيرا، وكانت مركزًا للطب والفلسفة. يضم الموقع معبد زيوس ومعبد أبولو والأغورا.',
@@ -997,7 +997,7 @@ const kSites = <HeritageSite>[
     id: 'sabratha', nameAr: 'صبراتة', nameEn: 'Sabratha',
     regionAr: 'صبراتة', regionEn: 'Sabratha', category: 'آثار رومانية',
     eraAr: 'القرن 6 ق.م – القرن 4 م', eraEn: '6th c. BC – 4th c. AD',
-    unesco: true, lat: 32.8040, lon: 12.4850,
+    unesco: true, lat: 32.8055, lon: 12.4842,
     status: Preservation.good, icon: Icons.theater_comedy,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Theatre_of_Sabratha%2C_Libya.jpg/960px-Theatre_of_Sabratha%2C_Libya.jpg',
     storyAr: 'محطة تجارية فينيقية صارت مدينة رومانية مزدهرة. يشتهر مسرحها الضخم بواجهته المكونة من ثلاثة طوابق من الأعمدة.',
@@ -1027,7 +1027,7 @@ const kSites = <HeritageSite>[
     id: 'ghadames', nameAr: 'غدامس القديمة', nameEn: 'Old Town of Ghadames',
     regionAr: 'غدامس', regionEn: 'Ghadames', category: 'مدن قديمة',
     eraAr: 'العصر الروماني – اليوم', eraEn: 'Roman era – present',
-    unesco: true, lat: 30.1337, lon: 9.5000,
+    unesco: true, lat: 30.1333, lon: 9.5000,
     status: Preservation.needsCare, icon: Icons.holiday_village,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Libya_Ghadames_Old_Town_Rooftop_View.JPG/960px-Libya_Ghadames_Old_Town_Rooftop_View.JPG',
     storyAr: 'لؤلؤة الصحراء؛ مدينة طينية ذات أزقة مسقوفة تقي من الحرارة، وبيوت متصلة بأسطح خاصة بالنساء.',
@@ -1057,7 +1057,7 @@ const kSites = <HeritageSite>[
     id: 'marcus', nameAr: 'قوس ماركوس أوريليوس', nameEn: 'Arch of Marcus Aurelius',
     regionAr: 'طرابلس', regionEn: 'Tripoli', category: 'آثار رومانية',
     eraAr: 'القرن 2 م', eraEn: '2nd c. AD',
-    unesco: false, lat: 32.8990, lon: 13.1870,
+    unesco: false, lat: 32.8996, lon: 13.1751,
     status: Preservation.good, icon: Icons.account_balance_outlined,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Marcus_Aurelius_Arch_Tripoli_Libya.jpg/960px-Marcus_Aurelius_Arch_Tripoli_Libya.jpg',
     storyAr: 'قوس نصر رخامي شُيّد تكريمًا للإمبراطور ماركوس أوريليوس، وهو أبرز معلم روماني في مدينة طرابلس القديمة.',
@@ -1194,7 +1194,7 @@ const kSites = <HeritageSite>[
     regionAr: 'لبدة الكبرى', regionEn: 'Leptis Magna',
     category: 'شخصيات تاريخية',
     eraAr: '145 – 211 م', eraEn: '145 – 211 AD',
-    unesco: true, lat: 32.6385, lon: 14.2910,
+    unesco: true, lat: 32.6366, lon: 14.2929,
     status: Preservation.underTreatment, icon: Icons.military_tech,
     image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Bust_of_Septimius_Severus_%28GL_357%29.jpg/960px-Bust_of_Septimius_Severus_%28GL_357%29.jpg',
     storyAr: 'وُلد في لبدة الكبرى وأصبح عام 193 م أول إمبراطور روماني من أصل أفريقي. أغدق على مسقط رأسه بالأبنية الفخمة، ومنها القوس والميدان والبازيليكا السيفيرية.',
@@ -3356,9 +3356,10 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
                 Chip(
                     avatar: Icon(Icons.verified, size: 16, color: p.accent),
                     label: Text(tg)),
-            Chip(
+            ActionChip(
                 avatar: Icon(Icons.place, size: 16, color: p.accent),
-                label: Text(s.region(ar))),
+                label: Text(s.region(ar)),
+                onPressed: () => openSiteInMaps(context, s, ar)),
             Chip(label: Text(ar ? s.category : kCategoryEn[s.category]!)),
             Chip(
                 avatar: Icon(Icons.schedule, size: 16, color: p.accent),
@@ -3367,11 +3368,21 @@ void showSiteSheet(BuildContext context, AppState state, HeritageSite s,
               Chip(
                   avatar: Icon(Icons.public, size: 16, color: p.accent),
                   label: Text(ar ? 'تراث عالمي - اليونسكو' : L('UNESCO World Heritage'))),
-            Chip(
+            ActionChip(
                 avatar: Icon(Icons.my_location, size: 16, color: p.accent),
                 label: Text(
-                    '${s.lat.toStringAsFixed(4)}°N, ${s.lon.toStringAsFixed(4)}°E')),
+                    '${s.lat.toStringAsFixed(4)}°N, ${s.lon.toStringAsFixed(4)}°E'),
+                onPressed: () => openSiteInMaps(context, s, ar)),
           ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () => openSiteInMaps(context, s, ar),
+              icon: const Icon(Icons.map_outlined),
+              label: Text(ar ? 'الموقع' : 'Location'),
+            ),
+          ),
           const SizedBox(height: 16),
           _GalleryStrip(site: s, ar: ar),
           const SizedBox(height: 16),
@@ -3683,6 +3694,18 @@ class _PhotoLightboxState extends State<_PhotoLightbox> {
         ),
       ]),
     );
+  }
+}
+
+/// Opens Google Maps (native app on iOS/Android, new tab on desktop) at the
+/// site's exact GPS coordinates.
+Future<void> openSiteInMaps(BuildContext context, HeritageSite site, bool ar) async {
+  final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${site.lat},${site.lon}');
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ar ? 'تعذر فتح خرائط Google' : 'Could not open Google Maps')));
   }
 }
 
